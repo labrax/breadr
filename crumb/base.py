@@ -1,11 +1,16 @@
 
 import inspect
+import itertools
 
 class Crumb:
-    def __init__(self, name, input=None, output=None, deps=None, func=None, save_exec=True):
+    def __init__(self, name, file, input=None, output=None, deps=None, func=None, save_exec=True):
         self._crumb_check_input(func, input)
 
+        if deps is not None and type(deps) is not list:
+            deps = [deps]
+
         self.name = name
+        self.file = file
         self.input = input
         self.output = output
         self.deps = deps
@@ -67,6 +72,7 @@ class Crumb:
     def __str__(self):
         return self.__repr__()
 
+
 class Slice:
     def __init__(self, name, save_exec=True):
         self.name = name
@@ -80,10 +86,16 @@ class Slice:
         self.crumbs = dict()
 
     def add_crumb(self, crumb):
+        if crumb.name in self.crumbs:
+            raise ValueError(f'crumb {crumb.name} already in Slice')
         self.crumbs[crumb.name] = {'crumb': crumb,
                                    'is_linked': False}
 
     def get_deps(self):
-        return set([i.deps for i in self.crumbs.values()])
+        return set(itertools.chain(*[i['crumb'].deps for i in self.crumbs.values()]))
 
-    
+    def __repr__(self):
+        return f'{self.__class__.__name__} at {hex(id(self))} with {len(self.crumbs)} crumbs'
+
+    def __str__(self):
+        return self.__repr__()    

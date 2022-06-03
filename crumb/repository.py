@@ -17,14 +17,17 @@ class CrumbRepository(object):
         if name is None:
             name = inspect.getfile(inspect.currentframe().f_back.f_back) + ':' + func.__name__
             if not self._warned_names:
-                warnings.warn('Functions will be given names from the stack track. Give a name to the crumb using the "name" parameter.', UserWarning)
+                warnings.warn('Functions without explicit names will be given names from their filepath and name. Give a name to the crumb using the "name" parameter.', UserWarning)
                 self._warned_names = True
         if name in self.crumbs:
             raise ValueError(f'name "{name}" already used in the repository')
-        self.crumbs[name] = Crumb(name=name, input=input, output=output, func=func, deps=deps)
+        self.crumbs[name] = Crumb(name=name, input=input, output=output, func=func, deps=deps, file=inspect.getfile(inspect.currentframe().f_back.f_back))
         #from pprint import pprint
         #print(name)
         #pprint(self.crumbs[name])
+
+    def get_crumb(self, name):
+        return self.crumbs[name]
 
     def reset(self):
         self.crumbs = dict()

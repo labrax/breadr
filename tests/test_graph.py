@@ -3,7 +3,9 @@ import unittest
 
 from crumb import crumb
 from crumb.repository import CrumbRepository
-from crumb.graph import Node
+from crumb.node import Node
+
+cr = CrumbRepository()
 
 class TestGraph(unittest.TestCase):
     def test_node_creation(self):
@@ -18,14 +20,14 @@ class TestGraph(unittest.TestCase):
         @crumb(input={'a': int, 'b': int}, output='int', name='minus')
         def minus(a, b):
             return a - b
-
-        cr = CrumbRepository()
+        
         self.assertIn('get5', cr.crumbs)
         self.assertIn('add15', cr.crumbs)
         self.assertIn('minus', cr.crumbs)
 
-        n1 = Node(cr.crumbs['get5'])
-        n2 = Node(cr.crumbs['add15'])
-        n3 = Node(cr.crumbs['minus'])
-
-        print([n1, n2, n3])
+        n1 = Node(cr.get_crumb('get5'))
+        n2 = Node(cr.get_crumb('add15'))
+        n3 = Node(cr.get_crumb('minus'))
+        n4 = Node(cr.get_crumb('get5'))
+        
+        print([n1, n2, n3, n4])

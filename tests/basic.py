@@ -33,7 +33,7 @@ class TestSlice(unittest.TestCase):
 
         s2 = Slice(name='first slice')
         s2.from_json(s.to_json())
-        # print(s2.to_json())
+        print(s2.to_json())
 
         self.assertEqual(s.to_json(), s2.to_json())
 

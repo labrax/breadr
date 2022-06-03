@@ -28,6 +28,8 @@ class Crumb:
 
         self.save_exec = save_exec
         self.last_exec = None
+
+        self.is_used = False # if it is being used in a Node
     
     def _get_args(self, func):
         sign = inspect.signature(func)

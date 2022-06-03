@@ -34,11 +34,14 @@ class CrumbRepository(object):
         if self._mute:
             return
 
+        # if no name is given get one from file name
         if name is None:
             name = inspect.getfile(inspect.currentframe().f_back.f_back) + ':' + func.__name__
             if not self._warned_names:
                 warnings.warn('Functions without explicit names will be given names from their filepath and name. Give a name to the crumb using the "name" parameter.', UserWarning)
                 self._warned_names = True
+        
+        # check existance in repo
         if (self._redirect is not None and name in self._redirect) or (self._redirect is None and name in self.crumbs):
             raise ValueError(f'name "{name}" already used in the repository')
         
@@ -49,6 +52,18 @@ class CrumbRepository(object):
             deps = []
         self._check_deps(deps)
         deps = {i: [j for j, k in inspect.currentframe().f_back.f_back.f_locals.items() if k == i] for i in deps}
+
+        # process types
+        if output.__class__.__name__ != 'type':
+            raise ValueError(f'"{output}" is not a type. maybe you wanted to do type("{output}")?')
+        
+        if input:
+            _invalid_input = list()
+            for i, j in input.items():
+                if j.__class__.__name__ != 'type':
+                    _invalid_input.append(i)
+            if len(_invalid_input) > 0:
+                raise ValueError('at least one input parameter is not a type. check: "{}"'.format('", "'.join(_invalid_input)))
 
         new_crumb = Crumb(name=name, input=input, output=output, func=func, deps=deps, file=inspect.getfile(inspect.currentframe().f_back.f_back))
         if self._redirect:

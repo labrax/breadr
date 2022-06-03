@@ -32,5 +32,13 @@ class TestInputErrors(unittest.TestCase):
                 return None
         self.assertRaises(TypeError, _test)
 
+    def test_invalid_deps(self):
+        def _test():
+            @crumb.crumb(output=int, deps=['aaa'])
+            def func(valid):
+                return None
+            self.fail('This should have failed instead')
+        self.assertRaises(ValueError, _test)
+
 if __name__ == '__main__':
     unittest.main()

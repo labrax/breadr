@@ -2,7 +2,8 @@
 import unittest
 
 from crumb import crumb, CrumbRepository
-from crumb.base import Slice
+from crumb.slice import Slice
+from crumb.crumb import Crumb
 
 cr = CrumbRepository()
 
@@ -18,20 +19,44 @@ class TestBasics(unittest.TestCase):
     
 class TestSlice(unittest.TestCase):
     def test_slice(self):
-        import math
-        import os
+        cr.reset()
 
-        @crumb(output=int, name='a1', deps=[math])
-        def func(aa=1):
-            return aa
-        
-        @crumb(output=int, name='a2', deps=os)
-        def func(aa=2):
-            return aa
+        import tests.sample_crumbs # crumbs needed
 
         s = Slice(name='first slice')
-        s.add_crumb(cr.get_crumb('a1'))
-        s.add_crumb(cr.get_crumb('a2'))
+        s.add_crumb('a1', cr.get_crumb('a1'))
+        s.add_crumb('a2', cr.get_crumb('a2'))
 
-        print(s)
-        print(s.get_deps())
+        # print(s)
+        # print(s.get_deps())
+        # print(s.to_json())
+
+        s2 = Slice(name='first slice')
+        s2.from_json(s.to_json())
+        # print(s2.to_json())
+
+        self.assertEqual(s.to_json(), s2.to_json())
+
+class TestJSON(unittest.TestCase):
+    def test_tofrom(self):
+        cr.reset()
+
+        import tests.singleton_m2 # crumbs needed!
+
+        c_f2 = cr.get_crumb('f2')
+        c_f2_new = Crumb.create_from_json(c_f2.to_json())
+        self.assertEqualCrumbs(c_f2, c_f2_new)
+
+        c_fpi = cr.get_crumb('fpi')
+        c_fpi_new = Crumb.create_from_json(c_fpi.to_json())
+        self.assertEqualCrumbs(c_fpi, c_fpi_new)
+
+    def assertEqualCrumbs(self, a, b):
+        self.assertEqual(a.name, b.name)
+        self.assertEqual(a.input, b.input)
+        self.assertEqual(a.output, b.output)
+        self.assertEqual(a.file, b.file)
+        self.assertEqual(a.func.__name__, b.func.__name__)
+        self.assertEqual(a.deps, b.deps)
+        self.assertEqual(a.save_exec, b.save_exec)
+        self.assertEqual(a.last_exec, b.last_exec)

@@ -3,7 +3,7 @@
 
 import unittest
 
-from tests.basic import TestBasics, TestSlice
+from tests.basic import TestBasics, TestSlice, TestJSON
 from tests.invalid_function_def import TestInputErrors
 from tests.singleton import TestCrumbRepositorySingleton
 from tests.test_graph import TestGraph

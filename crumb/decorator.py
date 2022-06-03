@@ -5,6 +5,14 @@ from crumb.repository import CrumbRepository
 
 # decorator to add breadr functionality to functions
 def crumb(_func=None, *, output, input=None, deps=None, name=None):
+    """
+    Decorator that adds crumb reference to a function
+    @param _func: the function under the decorator
+    @param output: the output of the function, int, float, class, ..., obtained from type()
+    @param input: the input of the function: {'param1': int, 'param2': class, ...}
+    @param deps: list of modules
+    @param name: short name for this function
+    """
     def decorator_add(func):
         c = CrumbRepository()
         CrumbRepository().add_crumb(name=name, 

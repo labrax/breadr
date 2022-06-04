@@ -79,6 +79,6 @@ class TestGraph(unittest.TestCase):
         print(s._check_graph_circular())
         print(s._check_input_complete(only_in_output=True))
 
-        
+        print(s.run(input={'in': 1, 'in2': 10, 'in3': 5}))
 
 

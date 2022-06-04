@@ -9,7 +9,7 @@ class CrumbRepository(object):
         global crumb_repository_instance
         try: crumb_repository_instance
         except NameError:
-            crumb_repository_instance = super(CrumbRepository, cls).__new__(cls)
+            crumb_repository_instance = super().__new__(cls)
             crumb_repository_instance.reset()
         return crumb_repository_instance
 

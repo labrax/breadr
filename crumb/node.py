@@ -1,8 +1,5 @@
 
 
-from pickletools import TAKEN_FROM_ARGUMENT4U
-
-
 class Node:
     def __init__(self, bakery_item, name=None):
         if name is None:
@@ -10,6 +7,8 @@ class Node:
         self.name = name
         self.bakery_item = bakery_item
         self.bakery_item.is_used = True
+        self.save_exec = False
+        self.last_exec = {}
 
         if bakery_item.input:
             self.input = {i:None for i in bakery_item.input.keys()} # format is {'input name': ('other Node', 'other node name')} # single input
@@ -108,3 +107,13 @@ class Node:
 
     def __str__(self):
         return self.__repr__()
+
+    def run(self, input):
+        ret = self.bakery_item.run(input)
+        if self.bakery_item.__class__.__name__ == 'Slice':
+            return ret
+        elif self.bakery_item.__class__.__name__ == 'Crumb':
+            return {None:ret}
+        else:
+            raise RuntimeError(f'"{self.bakery_item.__class__.__name__}" is not implemented for node')
+        

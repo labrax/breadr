@@ -6,7 +6,7 @@ import os
 
 
 class Crumb:
-    def __init__(self, name, file, func, input=None, output=None, deps=None, save_exec=True):
+    def __init__(self, name, file, func, input=None, output=None, deps=None):
         """
         Starts a crumb object. Do not call this function directly, use the decorator.
         @param name: short name for this function
@@ -25,9 +25,6 @@ class Crumb:
         self.output = output
         self.deps = deps
         self.func = func
-
-        self.save_exec = save_exec
-        self.last_exec = None
 
         self.is_used = False # if it is being used in a Node
     
@@ -72,11 +69,7 @@ class Crumb:
             raise ValueError(err)
 
     def run(self, input):
-        if self.save_exec:
-            self.last_exec = self.func(**input)
-            return self.last_exec
-        else:
-            return self.func(**input)
+        return self.func(**input)
 
     def __repr__(self):
         return f'{self.__class__.__name__} at {hex(id(self))} with ({self.input})=>({str(self.output)})'
@@ -96,10 +89,6 @@ class Crumb:
                     'origin': i.__spec__.origin.replace('\\', '/'),
                     'called_as': j
                  } for i, j in self.deps.items() if i is not None}
-            },
-            'state': {
-                'save_exec': self.save_exec,
-                'last_exec': self.last_exec
             }
         }
         return json.dumps(this_structure)
@@ -126,53 +115,12 @@ class Crumb:
         self.file = restored_crumb.file
         self.deps = restored_crumb.deps
         self.func = restored_crumb.func
-        self.save_exec = restored_crumb.save_exec
-        self.last_exec = restored_crumb.last_exec
         cr._redirect = redirect_status
-        return
-
-        self.name = json_str['name']
-        self.input = {i:eval(j) for i,j in json_str['input'].items()} if json_str['input'] else {}
-        self.output = eval(json_str['output'])
-
-        self.file = json_str['executable']['file']
-
-        mute_status = cr._mute
-        cr.mute() # protection against overwriting definitions
-
-        self.deps = {}
-        for dn, ds in json_str['executable']['deps'].items():
-            # first lets try to find the module
-            spec = importlib.util.find_spec(dn)
-            if spec is None:
-                if ds['origin'] == 'built-in': # if it is built-in the installation is missing something
-                    cr.unmute()
-                    cr._mute = mute_status
-                    raise ImportError(f'cannot find module {dn}')
-                else: # lets try the file location
-                    spec = importlib.util.spec_from_file_location(dn, ds['origin'])
-            mod = importlib.util.module_from_spec(spec)
-            m = spec.loader.exec_module(mod) # this could lead to overwriting modules; this is necessary to ensure that the modules are in a working state
-            self.deps[mod] = ds['called_as']
-
-        # print(json_str['executable']['file'])
-
-        path, pkg = os.path.split(json_str['executable']['file'])
-        spec = importlib.util.spec_from_file_location(os.path.splitext(pkg)[0], json_str['executable']['file'])
-        mod = importlib.util.module_from_spec(spec)
-        m = spec.loader.exec_module(mod)
-
-        self.func = getattr(mod, json_str['executable']['func'])
-        self.save_exec = json_str['state']['save_exec']
-        self.last_exec = json_str['state']['last_exec']
-
-        cr.unmute() # unmute after loading modules
-        cr._mute = mute_status
 
     @classmethod
     def create_from_json(self, json_str):
         def f1(a=1):
             return None
-        crumb = Crumb('f1', '.', f1, input=None, output=None, deps=None, save_exec=True)
+        crumb = Crumb('f1', '.', f1, input=None, output=None, deps=None)
         crumb.from_json(json_str)
         return crumb

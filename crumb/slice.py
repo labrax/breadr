@@ -2,26 +2,30 @@
 import itertools
 import os
 import json
+import ast
 
 from .crumb import Crumb
 from . import __slicer_version__
 
 from .node import Node
+from .task_executor import TaskExecutor
 
 class Slice:
-    def __init__(self, name, save_exec=True):
+    def __init__(self, name):
         self.version = __slicer_version__
         self.name = name
         self.input = dict() # {'name': <type>}
         self._input_mapping = dict() # {'input_name': {'node name': ['Node input name']}} # an input to slice can go to multiple bakery_items
         self.output = dict() # {'name': <type>}
         self._output_mapping = dict() # {'output_name': ('node name', 'Node output name'])} # an output can com from a single bakery_item
-
-        self.save_exec = save_exec
-        self.last_exec = {}
         
         self.crumbs = dict() # {'name given': {'crumb': crumb, 'is_used': bool}}
         self.nodes = dict() # {'identifier': Node}
+
+        self._graph_checked = False
+        # these are the nodes that require input, if _graph_checked is True, they are in _input_mapping format is {node: {'node var': 'node var type'}}
+        self._required_input = None
+        self.last_execution_seq = None
 
         self.is_used = False # if it is being used in a Node
 
@@ -113,7 +117,7 @@ class Slice:
             max_it = it
         return max_it
 
-    def _check_input_complete(self, only_in_output=True):
+    def get_nodes_missing_input(self, only_in_output=True):
         if only_in_output:
             stack = list({self.nodes[node] for node, _ in self._output_mapping.values()})
         else:
@@ -134,7 +138,11 @@ class Slice:
                     stack.append(other_node)
 
         # these are the inputs missing within the graph
-        self._require_call_input = input_undefined
+        return input_undefined
+
+    def _check_input_complete(self, only_in_output=True):
+        input_undefined = self.get_nodes_missing_input(only_in_output=only_in_output)
+        self._required_input = input_undefined
         
         # remove the ones that will be given on the run call
         for _, data in self._input_mapping.items():
@@ -154,6 +162,42 @@ class Slice:
     def _check_graph(self):
         self._check_graph_circular()
         self._check_input_complete()
+        self._graph_checked = True
+
+    def _compute_execution_seq(self):
+        if not self._graph_checked:
+            self._check_graph() # in case of error an exception will be raised
+
+        nodes_seq = [] # format is: {'node': node_id, 'deps': [node_id_1, node_id_2, ...]}
+        # start from slice input
+        for node in self.nodes.values():
+            this = {'node': node, 'deps': []}
+            for _, data in node.input.items():
+                if data is not None: # if none comes from slice!
+                    this['deps'].append(data[1])
+            nodes_seq.append(this)
+        return nodes_seq
+    
+    def run(self, input=None, number_processes=2):
+        self.last_execution_seq = self._compute_execution_seq()
+
+        # these will go to the task executor
+        pre_computed_results = {} #{(node_name, node_input): value}
+        _missing_input = list() # in case something is missing
+        for name, data in self._input_mapping.items():
+            for node_name, node_input in data.items():
+                if not name in input:
+                    _missing_input.append(name)
+                else:
+                    # print('--->', (node_name, node_input[0]))
+                    pre_computed_results[(node_name, node_input[0])] = input[name]
+        if len(_missing_input) > 0:
+            raise RuntimeError(f'missing inputs to Slice {self}, add variables: "{_missing_input}"')
+
+        # print(self.last_execution_seq)
+        te = TaskExecutor()
+        results = te.add_work(task_seq=self.last_execution_seq, inputs_required=pre_computed_results)
+        return results
 
     # slice input and output functions
     def add_input(self, name, type):
@@ -166,6 +210,7 @@ class Slice:
             raise RuntimeError(f'"{name}" already in input list')
         self.input[name] = type
         self._input_mapping[name] = {}
+        self._graph_checked = False
 
     def remove_input(self, name):
         """
@@ -186,6 +231,7 @@ class Slice:
             raise RuntimeError(f'"{name}" already in output list')
         self.output[name] = type
         self._output_mapping[name] = None
+        self._graph_checked = False
 
     def remove_output(self, name):
         """
@@ -229,6 +275,7 @@ class Slice:
             self._input_mapping[name].pop(node_name)
         if len(self._input_mapping[name]) == 0:
             self._input_mapping.pop(name)
+        self._graph_checked = False
 
     def add_output_mapping(self, name, node_name, node_output):
         """
@@ -257,6 +304,7 @@ class Slice:
         if node_output != self._output_mapping[name][1]:
             raise RuntimeError(f'another element was in the output, not "{node_output}"')
         self._output_mapping[name] = None
+        self._graph_checked = False
     #
 
     def add_link(self, nodeA, nodeA_output, nodeB, nodeB_input):
@@ -273,6 +321,15 @@ class Slice:
         B = self.nodes[nodeB]
         A.add_output(this_output_name=nodeA_output, other_node=B, other_node_variable=nodeB_input)
         B.add_input(this_variable=nodeB_input, other_node=A, other_node_name=nodeA_output)
+
+    def remove_link(self, nodeA, nodeA_output, nodeB, nodeB_input):
+        self._check_node_exists(nodeA, node_output=nodeA_output)
+        self._check_node_exists(nodeB, node_input=nodeB_input)
+        A = self.nodes[nodeA]
+        B = self.nodes[nodeB]
+        A.remove_output(this_output_name=nodeA_output, other_node=B, other_node_variable=nodeB_input)
+        B.remove_input(this_variable=nodeB_input)
+        self._graph_checked = False
 
     def get_deps(self):
         return set(itertools.chain(*[i['crumb'].deps for i in self.crumbs.values()]))
@@ -298,11 +355,7 @@ class Slice:
             'crumbs': {i: {
                 'crumb': j['crumb'].to_json(), 
                 'is_used': j['is_used']
-            } for i, j in self.crumbs.items()} if self.crumbs else {},
-            'state': {
-                'save_exec': self.save_exec,
-                'last_exec': self.last_exec
-            }
+            } for i, j in self.crumbs.items()} if self.crumbs else {}
         }
         return json.dumps(this_structure)
 
@@ -313,17 +366,15 @@ class Slice:
         self.version = __slicer_version__
         self.name = json_str['slice_name']
         
-        self.input = {i:eval(j) for i,j in json_str['input']['objects'].items()} if json_str['input']['objects'] else {}
+        self.input = {i:ast.literal_eval(j) for i,j in json_str['input']['objects'].items()} if json_str['input']['objects'] else {}
         self._input_mapping = json_str['input']['mapping']
-        self.output = {i:eval(j) for i,j in json_str['output']['objects'].items()} if json_str['output']['objects'] else {}
+        self.output = {i:ast.literal_eval(j) for i,j in json_str['output']['objects'].items()} if json_str['output']['objects'] else {}
         self._output_mapping = json_str['output']['mapping']
 
         self.crumbs = {i:{
             'crumb': Crumb.create_from_json(j['crumb']), 
             'is_used': j['is_used']
         } for i, j in json_str['crumbs'].items()} if json_str['crumbs'] else {}
-        self.save_exec = json_str['state']['save_exec']
-        self.last_exec = json_str['state']['last_exec']
 
     def save(self, path, overwrite=False):
         if not overwrite:

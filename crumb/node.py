@@ -12,13 +12,13 @@ class Node:
         self.bakery_item.is_used = True
 
         if bakery_item.input:
-            self.input = {i:None for i in bakery_item.input.keys()} # format is {'input name': ('other Node', 'other node name')}
+            self.input = {i:None for i in bakery_item.input.keys()} # format is {'input name': ('other Node', 'other node name')} # single input
         else:
             self.input = {}
 
         if self.bakery_item.output:
             if self.bakery_item.__class__.__name__ == 'Slice':
-                self.output = {i:dict() for i in self.bakery_item.output.keys()} # format is {'output name': {'other Node': [other node name]}}
+                self.output = {i:dict() for i in self.bakery_item.output.keys()} # format is {'output name': {'other Node': [other node name]}} # multiple output
             elif self.bakery_item.__class__.__name__ == 'Crumb':
                 self.output = {None:dict()}
             else:

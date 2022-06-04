@@ -33,9 +33,15 @@ class TestGraph(unittest.TestCase):
 
         s = Slice('test')
         s.add_input('in', int)
+        s.remove_input('in')
+        s.add_input('in', int)
+
+        s.add_output('out', int)
+        s.remove_output('out')
+        s.add_output('out', int)
+
         s.add_input('in2', int)
         s.add_input('in3', int)
-        s.add_output('out', int)
         s.add_output('out2', int)
 
         s.add_crumb('get5', cr.get_crumb('get5'))
@@ -69,3 +75,10 @@ class TestGraph(unittest.TestCase):
         
         pprint(s.crumbs)
         pprint(s.nodes)
+
+        print(s._check_graph_circular())
+        print(s._check_input_complete(only_in_output=True))
+
+        
+
+

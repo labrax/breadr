@@ -13,9 +13,9 @@ class Slice:
         self.version = __slicer_version__
         self.name = name
         self.input = dict() # {'name': <type>}
-        self._input_mapping = dict() # {'input_name': {'node name': ['Node input name']}}
+        self._input_mapping = dict() # {'input_name': {'node name': ['Node input name']}} # an input to slice can go to multiple bakery_items
         self.output = dict() # {'name': <type>}
-        self._output_mapping = dict() # {'output_name': {'node name': ['Node output name']}}
+        self._output_mapping = dict() # {'output_name': ('node name', 'Node output name'])} # an output can com from a single bakery_item
 
         self.save_exec = save_exec
         self.last_exec = {}
@@ -51,6 +51,11 @@ class Slice:
         self.nodes.pop(node_name)
 
     def _check_input_exists(self, name, check_mapping=True):
+        """
+        Check if the name is in the list of input and (optional) if the mapping is defined
+        @param name: name of input
+        @param check_mapping: bool
+        """
         if name not in self.input:
             raise RuntimeError(f'"{name}" not in input list')
         if check_mapping:
@@ -58,6 +63,11 @@ class Slice:
                 raise RuntimeError(f'"{name}" contains mapping to input')
 
     def _check_output_exists(self, name, check_mapping=True):
+        """
+        Check if the name is in the list of output and (optional) if the mapping is defined
+        @param name: name of output
+        @param check_mapping: bool
+        """
         if name not in self.output:
             raise RuntimeError(f'"{name}" not in output list')
         if check_mapping:
@@ -79,6 +89,71 @@ class Slice:
         if node_output is not None:
             if node_output not in self.nodes[node_name].output.keys():
                 raise RuntimeError(f'"{node_output}" not in "{node_name}" output list')
+
+    def _check_graph_circular(self):
+        if len(self.nodes) == 0:
+            return
+
+        visited = {}
+        max_it = 0
+        for it, stack_start in enumerate(self.nodes.keys()):
+            if stack_start in visited:
+                continue
+            
+            stack = [stack_start]
+            while len(stack) > 0:
+                current = stack.pop(0)
+                for el in self.nodes[current].output.values(): # for each {'output name': {node, ['input name', ...]}}
+                    for out_node, _ in el.items(): # for each {node, [...]}
+                        if (out_node.name in visited) and (visited[out_node.name] == it):
+                            raise RuntimeError(f'"{out_node.name}" already explored, graph is circular')
+                        elif out_node.name not in visited:
+                            stack.append(out_node.name)
+                            visited[out_node.name] = it
+            max_it = it
+        return max_it
+
+    def _check_input_complete(self, only_in_output=True):
+        if only_in_output:
+            stack = list({self.nodes[node] for node, _ in self._output_mapping.values()})
+        else:
+            stack = self.nodes
+
+        input_undefined = dict() # format is {node: {'node var': 'node var type'}}
+        visited = set(stack)
+        while len(stack) > 0:
+            current = stack.pop(0)
+            for inp, data in current.input.items():
+                if data is None:
+                    if current not in input_undefined:
+                        input_undefined[current] = dict()
+                    input_undefined[current][inp] = current.bakery_item.input[inp]
+                else:
+                    other_node = data[0]
+                    visited.add(other_node)
+                    stack.append(other_node)
+
+        # these are the inputs missing within the graph
+        self._require_call_input = input_undefined
+        
+        # remove the ones that will be given on the run call
+        for _, data in self._input_mapping.items():
+            for node_name, vars in data.items():
+                node = self.nodes[node_name]
+                if node in input_undefined:
+                    for i in vars:
+                        input_undefined[node].pop(i)
+                        if len(input_undefined[node]) == 0:
+                            input_undefined.pop(node)
+
+        # if we still have things missing we need to call quits as they need to be mapped
+        if input_undefined:
+            err = '\n'.join(['\t{}, elements: "{}"'.format(node, '", "'.join([str(i[0]) for i in inps])) for node, inps in input_undefined.items()])
+            raise RuntimeError('input is undefined for at least one node:\n"{}"'.format(err))
+
+    def _check_graph(self):
+        self._check_graph_circular()
+        self._check_input_complete()
 
     # slice input and output functions
     def add_input(self, name, type):
@@ -110,7 +185,7 @@ class Slice:
         if name in self.output:
             raise RuntimeError(f'"{name}" already in output list')
         self.output[name] = type
-        self._output_mapping[name] = {}
+        self._output_mapping[name] = None
 
     def remove_output(self, name):
         """
@@ -162,15 +237,12 @@ class Slice:
         @param node_name: the name of the node
         @param node_output: the name of the node output
         """
-        self._check_output_exists(name, check_mapping=False)
+        self._check_output_exists(name, check_mapping=True)
         self._check_node_exists(node_name, node_output)
         if self.output[name] != self.nodes[node_name].get_output_type(node_output):
             raise RuntimeError(f'"{name}" has got different type than output for node "{node_name}" (output {node_output}). types are: "{self.output[name]}" and "{self.nodes[node_name].output[node_output]}"')
-        if not name in self._output_mapping:
-            self._output_mapping = dict()
-        if not node_name in self._output_mapping[name]:
-            self._output_mapping[name][node_name] = list()
-        self._output_mapping[name][node_name].append(node_output)
+        if self._output_mapping[name] is None:
+            self._output_mapping[name] = (node_name, node_output)
 
     def remove_output_mapping(self, name, node_name, node_output):
         """
@@ -180,13 +252,11 @@ class Slice:
         @param node_output: name of the node output
         """
         self._check_output_exists(name, check_mapping=False)
-        if not node_name in self._output_mapping[name]:
-            raise RuntimeError(f'"{node_name} not in output mapping')
-        self._output_mapping[name][node_name].pop(node_output)
-        if len(self._output_mapping[name][node_name]) == 0:
-            self._output_mapping[name].pop(node_name)
-        if len(self._output_mapping[name]) == 0:
-            self._output_mapping.pop(name)
+        if node_name != self._output_mapping[name][0]:
+            raise RuntimeError(f'"{node_name}" not in output mapping')
+        if node_output != self._output_mapping[name][1]:
+            raise RuntimeError(f'another element was in the output, not "{node_output}"')
+        self._output_mapping[name] = None
     #
 
     def add_link(self, nodeA, nodeA_output, nodeB, nodeB_input):

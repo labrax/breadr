@@ -69,6 +69,8 @@ class Crumb:
             raise ValueError(err)
 
     def run(self, input):
+        if self.func is None:
+            self.reload()
         return self.func(**input)
 
     def __repr__(self):
@@ -94,28 +96,41 @@ class Crumb:
         return json.dumps(this_structure)
 
     def from_json(self, json_str):
-        from crumb.repository import CrumbRepository
-        cr = CrumbRepository()
-
         json_str = json.loads(json_str)
 
+        filepath = json_str['executable']['file']
+        crumb_name = json_str['name']
+
+        self.load_from_file(filepath, crumb_name)
+
+    def load_from_file(self, filepath, crumb_name):
+        from crumb.repository import CrumbRepository
+        cr = CrumbRepository()
+        # redirect crumbs creation to ensure we have the right function
         crumbs_repo = dict()
         redirect_status = cr._redirect
         cr.redirect({'target': crumbs_repo})
         # load file to recover crumbs
-        path, pkg = os.path.split(json_str['executable']['file'])
-        spec = importlib.util.spec_from_file_location(os.path.splitext(pkg)[0], json_str['executable']['file'])
+        path, pkg = os.path.split(filepath)
+        spec = importlib.util.spec_from_file_location(os.path.splitext(pkg)[0], filepath)
         mod = importlib.util.module_from_spec(spec)
         m = spec.loader.exec_module(mod)
         # get crumb
-        restored_crumb = cr.get_crumb(json_str['name'])
-        self.name = restored_crumb.name
+        restored_crumb = cr.get_crumb(crumb_name)
+        self.name = crumb_name
         self.input = restored_crumb.input
         self.output = restored_crumb.output
-        self.file = restored_crumb.file
+        self.file = filepath
         self.deps = restored_crumb.deps
         self.func = restored_crumb.func
+        # restore redirection
         cr._redirect = redirect_status
+
+    def reload(self):
+        self.load_from_file(self.file, self.name)
+
+    def prepare_for_exec(self):
+        self.func = None
 
     @classmethod
     def create_from_json(self, json_str):

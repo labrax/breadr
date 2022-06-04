@@ -4,11 +4,12 @@ import os
 import json
 import ast
 
-from .crumb import Crumb
+import crumb.settings
+from crumb.crumb import Crumb
 from . import __slicer_version__
 
 from .node import Node
-from .task_executor import TaskExecutor
+from .slicers import MultiSlicer
 
 class Slice:
     def __init__(self, name):
@@ -164,24 +165,37 @@ class Slice:
         self._check_input_complete()
         self._graph_checked = True
 
+    def reload(self):
+        for i in self.crumbs.values():
+            i['crumb'].reload()
+
+    def prepare_for_exec(self):
+        for i in self.crumbs.values():
+            i['crumb'].prepare_for_exec()
+
     def _compute_execution_seq(self):
         if not self._graph_checked:
             self._check_graph() # in case of error an exception will be raised
 
-        nodes_seq = [] # format is: {'node': node_id, 'deps': [node_id_1, node_id_2, ...]}
+        nodes_seq = [] # format is: [{'node': node_id, 'deps': [node_id_1, node_id_2, ...]}]
         # start from slice input
         for node in self.nodes.values():
             this = {'node': node, 'deps': []}
             for _, data in node.input.items():
-                if data is not None: # if none comes from slice!
-                    this['deps'].append(data[1])
+                if not data is None: # if none comes from slice!
+                    this['deps'].append(data[0].name)
             nodes_seq.append(this)
+
+        if crumb.settings.debug:
+            from pprint import pprint
+            print('execu graph is>')
+            pprint(nodes_seq)
         return nodes_seq
     
     def run(self, input=None, number_processes=2):
         self.last_execution_seq = self._compute_execution_seq()
 
-        # these will go to the task executor
+        # these will go to the slicer
         pre_computed_results = {} #{(node_name, node_input): value}
         _missing_input = list() # in case something is missing
         for name, data in self._input_mapping.items():
@@ -189,15 +203,34 @@ class Slice:
                 if not name in input:
                     _missing_input.append(name)
                 else:
-                    # print('--->', (node_name, node_input[0]))
+                    if crumb.settings.debug:
+                        print('slicer will get --->', (node_name, node_input[0]))
                     pre_computed_results[(node_name, node_input[0])] = input[name]
         if len(_missing_input) > 0:
             raise RuntimeError(f'missing inputs to Slice {self}, add variables: "{_missing_input}"')
 
         # print(self.last_execution_seq)
-        te = TaskExecutor()
+        te = MultiSlicer()
         results = te.add_work(task_seq=self.last_execution_seq, inputs_required=pre_computed_results)
-        return results
+
+        if crumb.settings.debug:
+            print('results of slice execution are:', results)
+
+        # populated nodes with output if needed
+        for node in self.nodes:
+            if node in self.last_execution_seq: # node was executed
+                if not node.name in results:
+                    raise RuntimeError('expected result to be in here but is not') #TODO: possibly this can become a warning
+                else:
+                    if node.save_exec:
+                        node.last_exec = results[node.name]
+        
+        # obtain output for this slice:
+        results_to_return = dict()
+        for output_name, (node_name, node_output_name) in self._output_mapping.items():
+            results_to_return[output_name] = results[node_name][node_output_name]
+
+        return results_to_return
 
     # slice input and output functions
     def add_input(self, name, type):

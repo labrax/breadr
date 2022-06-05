@@ -46,13 +46,25 @@ class TestGraph(unittest.TestCase):
         n5 = s.add_node('minus')
         n6 = s.add_node('minus')
 
+        print([n1, n2, n3, n4, n5, n6])
+
+        _n = s.add_node('minus')
+        s.add_input_mapping('in', _n, 'a')
+        s.remove_input_mapping('in', _n, 'a')
+
         s.add_input_mapping('in', n2, 'a')
         s.add_input_mapping('in2', n5, 'a')
         s.add_input_mapping('in3', n5, 'b')
 
+        s.add_output_mapping('out', _n, None)
+        s.remove_output_mapping('out', _n, None)
+        s.remove_node(_n)
+
         s.add_output_mapping('out', n3, None)
         s.add_output_mapping('out2', n4, None)
 
+        s.add_link(n1, None, n6, 'a')
+        s.remove_link(n1, None, n6, 'a')
         s.add_link(n1, None, n6, 'a')
         s.add_link(n2, None, n6, 'b')
 
@@ -73,6 +85,9 @@ class TestGraph(unittest.TestCase):
         print('---')
         ret = s.run(input={'in': 1, 'in2': 10, 'in3': 5})
         print('>>>', ret)
+
+        self.assertEqual(ret['out'], 16)
+        self.assertEqual(ret['out2'], 5)
 
         ms = MultiSlicer()
         ms.kill()

@@ -33,7 +33,7 @@ class Node:
     def n_links_out(self):
         N = 0
         for i in self.output.values():
-            if i is not None:
+            if i is not None and i:
                 N += 1
         return N
 
@@ -41,12 +41,8 @@ class Node:
         return self.n_links_in() + self.n_links_out()
 
     def has_links(self):
-        for i in self.output.values():
-            if i is not None:
-                return True
-        for i in self.input.values():
-            if i is not None:
-                return True
+        if self.n_links() > 0:
+            return True
         return False
 
     def get_input_type(self, name):
@@ -98,9 +94,7 @@ class Node:
     def remove_output(self, this_output_name, other_node, other_node_variable):
         if not other_node in self.output[this_output_name]:
             raise RuntimeError(f'"{other_node}" is not in our list of outputs')
-        self.output[this_output_name][other_node].pop(other_node_variable)
-        if len(self.output[this_output_name][other_node]) == 0:
-            self.output[this_output_name].pop(other_node)
+        self.output[this_output_name][other_node].remove(other_node_variable)
     
     def __repr__(self):
         return f'{self.__class__.__name__} at {hex(id(self))} ({self.n_links()} links): ({str(self.bakery_item)})'

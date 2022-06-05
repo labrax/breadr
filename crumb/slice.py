@@ -47,8 +47,9 @@ class Slice:
                 raise RuntimeError(f'cannot remove "{node_name}" as it is linked to input')
 
         for i in self._output_mapping.values():
-            if node_name in i:
-                raise RuntimeError(f'cannot remove "{node_name}" as it is linked to output')
+            if not i is None:
+                if node_name in i:
+                    raise RuntimeError(f'cannot remove "{node_name}" as it is linked to output')
 
         if self.nodes[node_name].has_links():
             raise RuntimeError(f'cannot remove "{node_name}" as it is connect in the graph')
@@ -303,11 +304,9 @@ class Slice:
         self._check_input_exists(name, check_mapping=False)
         if not node_name in self._input_mapping[name]:
             raise RuntimeError(f'"{node_name} not in input mapping')
-        self._input_mapping[name][node_name].pop(node_input)
+        self._input_mapping[name][node_name].remove(node_input)
         if len(self._input_mapping[name][node_name]) == 0:
             self._input_mapping[name].pop(node_name)
-        if len(self._input_mapping[name]) == 0:
-            self._input_mapping.pop(name)
         self._graph_checked = False
 
     def add_output_mapping(self, name, node_name, node_output):

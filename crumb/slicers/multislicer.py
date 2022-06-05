@@ -131,9 +131,9 @@ class MultiSlicer(Slicer):
                     self.tasks_to_be_done.get()
                 except Empty:
                     pass
+            self.tasks_done.put({'node': None, 'input': {'kill': True}}) # one for the scheduler
             for _ in range(len(self.processes) - 1):
-                self.tasks_to_be_done.put({'node': None, 'input': {'kill': True}})
-            self.tasks_done.put({'node': None, 'input': {'kill': True}})
+                self.tasks_to_be_done.put({'node': None, 'input': {'kill': True}}) # other for workers/wait
             if crumb.settings.debug:
                 print(f'{self.__class__.__name__} waiting for all processes to join')
             for i in self.processes:
@@ -232,7 +232,7 @@ class MultiSlicer(Slicer):
         p = Process(target=wait_work,
                     name='MultiSlicer-Wait',
                     args=(self.tasks_to_be_done, [i['node'].name for i in task_seq], self.results))
-        # self.processes.append(p)
+        self.processes.append(p)
         p.start()
         p.join()
         

@@ -103,11 +103,18 @@ class Node:
         return self.__repr__()
 
     def run(self, input):
-        ret = self.bakery_item.run(input)
+        _ret = self.bakery_item.run(input)
+        
         if self.bakery_item.__class__.__name__ == 'Slice':
-            return ret
+            ret = _ret
         elif self.bakery_item.__class__.__name__ == 'Crumb':
-            return {None:ret}
+            ret = {None:_ret}
         else:
+            # this code should never run as error already in __init__
             raise RuntimeError(f'"{self.bakery_item.__class__.__name__}" is not implemented for node')
+
+        if self.save_exec:
+            self.last_exec = ret
+
+        return ret
         

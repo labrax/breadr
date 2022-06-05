@@ -1,5 +1,6 @@
 
 from .base import Slicer
+import crumb.settings
 
 class SingleSlicer(Slicer):
     """
@@ -16,7 +17,6 @@ class SingleSlicer(Slicer):
         return task_executor_instance
 
     def reset(self):
-        self.kill()
         # ready for execution
         self.tasks_to_be_done = list() # [{'node': node, 'input': {name': value}}]
 
@@ -30,7 +30,34 @@ class SingleSlicer(Slicer):
 
     def _exec(self):
         ## TODO: implement
-        pass
+
+        while len(self.tasks_to_be_done) > 0:
+            task = self.tasks_to_be_done.pop(0) # get first in the queue
+
+            just_exec_node_name = task['node'].name
+            self.results[just_exec_node_name] = task['node'].run(task['input'])
+
+            if just_exec_node_name in self.deps_to_nodes:
+                # get these dependencies
+                for node_name in self.deps_to_nodes[just_exec_node_name]:
+                    # remove dependency for the task finished
+                    self.nodes_to_deps[node_name].remove(just_exec_node_name)
+                    # if there are no more dependencies prepare it to run
+                    if len(self.nodes_to_deps[node_name]) == 0:
+                        self.nodes_to_deps.pop(node_name)
+                        # collect input for node
+                        node = self.node_waiting[node_name]
+                        # get all inputs - they are done
+                        d = {}
+                        for input_name, (previous_node, other_node_input) in node.input.items():
+                            print(input_name, previous_node, other_node_input)
+                            d[input_name] = self.results[previous_node.name][other_node_input]
+                        self.input_for_nodes[node_name] = d
+                        # remove from waiting list
+                        self.node_waiting.pop(node_name)
+                        # send for execution
+                        self.tasks_to_be_done.append({'node': node, 'input': self.input_for_nodes[node_name]})
+                        self.input_for_nodes.pop(node_name) # we can clean this as it was already sent
 
     def add_work(self, task_seq, inputs_required=None):
         """
@@ -42,12 +69,8 @@ class SingleSlicer(Slicer):
         if not inputs_required is None:
             for (node_name, node_input), value in inputs_required.items():
                 if not node_name in self.input_for_nodes:
-                    self.input_for_nodes[node_name] = {node_input: value}
-                else:
-                    # need to reassign due to the way objects in multiprocessing work
-                    d = self.input_for_nodes[node_name]
-                    d[node_input] = value
-                    self.input_for_nodes[node_name] = d
+                    self.input_for_nodes[node_name] = {}
+                self.input_for_nodes[node_name][node_input] = value
 
         # compute nodes with node-node dependencies
         for el in task_seq:

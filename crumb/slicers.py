@@ -153,7 +153,7 @@ class MultiSlicer:
                     print('slicer> joining', i)
                 i.join()
 
-    def reset(self, number_processes=4):
+    def reset(self, number_processes=crumb.settings.multislicer_threads):
         self.kill()
 
         self.manager = Manager()

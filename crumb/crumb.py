@@ -6,13 +6,12 @@ import os
 
 
 class Crumb:
-    def __init__(self, name, file, func, input=None, output=None, deps=None):
+    def __init__(self, name, file, func, input=None, output=None):
         """
         Starts a crumb object. Do not call this function directly, use the decorator.
         @param name: short name for this function
         @param file: filepath where the function comes from
         @param func: a function
-        @param deps: dependencies in the format {module: ['module name', 'module name 2', ...], module2: ['module 2 name'], ...}
         @param input: the input of the function: {'param1': int, 'param2': class, ...}
         @param output: the output of the function, int, float, class, ..., obtained from type()
         @param save_exec: boolean save the output of the execution on memory?
@@ -23,7 +22,6 @@ class Crumb:
         self.file = file.replace('\\', '/')
         self.input = input
         self.output = output
-        self.deps = deps
         self.func = func
 
         self.is_used = False # if it is being used in a Node
@@ -86,11 +84,7 @@ class Crumb:
             'output': self.output.__name__,
             'executable': {
                 'file': self.file,
-                'func': self.func.__name__,
-                'deps': {i.__name__: {
-                    'origin': i.__spec__.origin.replace('\\', '/'),
-                    'called_as': j
-                 } for i, j in self.deps.items() if i is not None}
+                'func': self.func.__name__
             }
         }
         return json.dumps(this_structure)
@@ -121,7 +115,6 @@ class Crumb:
         self.input = restored_crumb.input
         self.output = restored_crumb.output
         self.file = filepath
-        self.deps = restored_crumb.deps
         self.func = restored_crumb.func
         # restore redirection
         cr._redirect = redirect_status
@@ -136,6 +129,6 @@ class Crumb:
     def create_from_json(self, json_str):
         def f1(a=1):
             return None
-        crumb = Crumb('f1', '.', f1, input=None, output=None, deps=None)
+        crumb = Crumb('f1', '.', f1, input=None, output=None)
         crumb.from_json(json_str)
         return crumb

@@ -22,12 +22,11 @@ class CrumbRepository(object):
             if len(_not_module) > 0:
                 raise ValueError('dependencies added must be python modules. invalid dependencies are "{}"'.format('", "'.join(_not_module)))
 
-    def add_crumb(self, name, func, deps, input, output):
+    def add_crumb(self, name, func, input, output):
         """
         Adds a crumb to the repository. Do not call this function directly, use the decorator.
         @param name: short name for this function, if None name will be given from the filepath
         @param func: the function
-        @param deps: list of modules as used by the funciton [os, np] dependencies in the format {module: ['module name', 'module name 2', ...], module2: ['module 2 name'], ...}
         @param input: the input of the function: {'param1': int, 'param2': class, ...}
         @param output: the output of the function, int, float, class, ..., obtained from type()
         """
@@ -45,14 +44,6 @@ class CrumbRepository(object):
         if (self._redirect is not None and name in self._redirect) or (self._redirect is None and name in self.crumbs):
             raise ValueError(f'name "{name}" already used in the repository')
         
-        # process dependencies
-        if deps is not None and type(deps) is not list:
-            deps = [deps]
-        elif deps is None:
-            deps = []
-        self._check_deps(deps)
-        deps = {i: [j for j, k in inspect.currentframe().f_back.f_back.f_locals.items() if k == i] for i in deps}
-
         # process types
         if output.__class__.__name__ != 'type':
             raise ValueError(f'"{output}" is not a type. maybe you wanted to do type("{output}")?')
@@ -65,7 +56,7 @@ class CrumbRepository(object):
             if len(_invalid_input) > 0:
                 raise ValueError('at least one input parameter is not a type. check: "{}"'.format('", "'.join(_invalid_input)))
 
-        new_crumb = Crumb(name=name, input=input, output=output, func=func, deps=deps, file=inspect.getfile(inspect.currentframe().f_back.f_back))
+        new_crumb = Crumb(name=name, input=input, output=output, func=func, file=inspect.getfile(inspect.currentframe().f_back.f_back))
         if self._redirect:
             self._redirect[name] = new_crumb
         self.crumbs[name] = new_crumb

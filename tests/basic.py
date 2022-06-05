@@ -57,4 +57,3 @@ class TestJSON(unittest.TestCase):
         self.assertEqual(a.output, b.output)
         self.assertEqual(a.file, b.file)
         self.assertEqual(a.func.__name__, b.func.__name__)
-        self.assertEqual(a.deps, b.deps)

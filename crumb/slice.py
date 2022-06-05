@@ -363,9 +363,6 @@ class Slice:
         B.remove_input(this_variable=nodeB_input)
         self._graph_checked = False
 
-    def get_deps(self):
-        return set(itertools.chain(*[i['crumb'].deps for i in self.crumbs.values()]))
-
     def __repr__(self):
         return f'{self.__class__.__name__} at {hex(id(self))} with {len(self.crumbs)} crumbs'
 

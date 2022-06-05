@@ -3,11 +3,11 @@ from crumb import crumb
 import math
 import os
 
-@crumb(output=int, name='a1', deps=[math])
+@crumb(output=int, name='a1')
 def func(aa=1):
     return aa
 
-@crumb(output=int, name='a2', deps=os)
+@crumb(output=int, name='a2')
 def func(aa=2):
     return aa
 

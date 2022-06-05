@@ -9,7 +9,7 @@ def f2(hue):
     return hue + 2
     
     
-@crumb(input={'hue': int}, output=int, deps=math, name='fpi')
+@crumb(input={'hue': int}, output=int, name='fpi')
 def fpi(hue):
     return math.pi + hue
 

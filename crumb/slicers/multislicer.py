@@ -67,7 +67,8 @@ def do_schedule(lock, tasks_to_be_done, tasks_that_are_done, results, input_for_
                     # get all inputs - they are done
                     d = {}
                     for input_name, (previous_node, other_node_input) in node.input.items():
-                        print(input_name, previous_node, other_node_input)
+                        if crumb.settings.debug:
+                            print('scheduler>', input_name, previous_node, other_node_input)
                         d[input_name] = results[previous_node.name][other_node_input]
                     input_for_nodes[node_name] = d
                     # remove from waiting list

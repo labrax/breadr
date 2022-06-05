@@ -44,7 +44,7 @@ class TestGraph(unittest.TestCase):
         n5 = s.add_node('minus')
         n6 = s.add_node('minus')
 
-        print([n1, n2, n3, n4, n5, n6])
+        # print([n1, n2, n3, n4, n5, n6])
 
         _n = s.add_node('minus')
         s.add_input_mapping('in', _n, 'a')
@@ -71,19 +71,17 @@ class TestGraph(unittest.TestCase):
 
         from pprint import pprint
 
-        pprint(s.nodes[n1].output)
-        pprint(s.nodes[n6].input)
+        # pprint(s.nodes[n1]['node'].output)
+        # pprint(s.nodes[n6]['node'].input)
         
-        pprint(s.crumbs)
-        pprint(s.nodes)
+        # pprint(s.crumbs)
+        # pprint(s.nodes)
 
-        print(s._check_graph_circular())
-        print(s._check_input_complete(only_in_output=True))
+        # print(s._check_graph_circular())
+        # print(s._check_input_complete(only_in_output=True))
 
-        print('---')
         settings.multislicer = False
         ret = s.run(input={'in': 1, 'in2': 10, 'in3': 5})
-        print('>>>', ret)
 
         self.assertEqual(ret['out'], 16)
         self.assertEqual(ret['out2'], 5)

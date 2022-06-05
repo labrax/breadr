@@ -50,7 +50,8 @@ class SingleSlicer(Slicer):
                         # get all inputs - they are done
                         d = {}
                         for input_name, (previous_node, other_node_input) in node.input.items():
-                            print(input_name, previous_node, other_node_input)
+                            if crumb.settings.debug:
+                                print('adding to queue>', input_name, previous_node, other_node_input)
                             d[input_name] = self.results[previous_node.name][other_node_input]
                         self.input_for_nodes[node_name] = d
                         # remove from waiting list

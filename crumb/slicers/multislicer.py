@@ -5,6 +5,8 @@ from multiprocessing import Manager, Lock, Process, Queue
 from queue import Empty
 import time
 
+from .base import Slicer
+
 def do_work(tasks_to_be_done, tasks_that_are_done):
     while True:
         try:
@@ -130,7 +132,7 @@ def wait_work(tasks_to_be_done, waiting_for, results):
         print('tasks are done')
     return True
 
-class MultiSlicer:
+class MultiSlicer(Slicer):
     def __new__(cls):
         global task_executor_instance
         try: task_executor_instance
@@ -138,6 +140,9 @@ class MultiSlicer:
             task_executor_instance = super().__new__(cls)
             task_executor_instance.reset()
         return task_executor_instance
+
+    def __del__(self):
+        self.kill()
 
     def kill(self):
         if hasattr(self, 'processes'):
@@ -154,6 +159,9 @@ class MultiSlicer:
                 i.join()
 
     def reset(self, number_processes=crumb.settings.multislicer_threads):
+        """
+        @param number_processes: restarts the MultiSlicer with a number of work processes
+        """
         self.kill()
 
         self.manager = Manager()
@@ -175,14 +183,16 @@ class MultiSlicer:
         self.nodes_to_deps = self.manager.dict() # {node_name: [deps]}
 
         p = Process(target=do_schedule, 
+                    name='MultiSlicer-Scheduler',
                     args=(self.lock, 
                         self.tasks_to_be_done, self.tasks_done, 
                         self.results, self.input_for_nodes,
                         self.deps_to_nodes, self.nodes_to_deps, self.node_waiting))
         self.processes.append(p)
         p.start()
-        for _ in range(self.number_processes):
+        for i in range(self.number_processes):
             p = Process(target=do_work, 
+                        name=f'MultiSlicer-Worker-{i}',
                         args=(self.tasks_to_be_done, self.tasks_done))
             self.processes.append(p)
             p.start()
@@ -236,7 +246,9 @@ class MultiSlicer:
                 print('add task> finished giving tasks')
             self.lock.release()
 
-        p = Process(target=wait_work, args=(self.tasks_to_be_done, [i['node'].name for i in task_seq], self.results))
+        p = Process(target=wait_work,
+                    name='MultiSlicer-Wait',
+                    args=(self.tasks_to_be_done, [i['node'].name for i in task_seq], self.results))
         # self.processes.append(p)
         p.start()
         p.join()

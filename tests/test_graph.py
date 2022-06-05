@@ -5,7 +5,6 @@ from crumb import crumb
 from crumb.slice import Slice
 from crumb.repository import CrumbRepository
 from crumb.node import Node
-from crumb.slicers import MultiSlicer
 
 cr = CrumbRepository()
 
@@ -90,8 +89,5 @@ class TestGraph(unittest.TestCase):
         self.assertEqual(ret['out'], 16)
         self.assertEqual(ret['out2'], 5)
 
-        ms = MultiSlicer()
-        ms.kill()
-        print('...')
 
 

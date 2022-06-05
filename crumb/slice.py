@@ -8,8 +8,8 @@ import crumb.settings
 from crumb.crumb import Crumb
 from . import __slicer_version__
 
-from .node import Node
-from .slicers import MultiSlicer
+from crumb.node import Node
+from crumb.slicers.slicers import get_slicer
 
 class Slice:
     def __init__(self, name):
@@ -211,7 +211,7 @@ class Slice:
             raise RuntimeError(f'missing inputs to Slice {self}, add variables: "{_missing_input}"')
 
         # print(self.last_execution_seq)
-        te = MultiSlicer()
+        te = get_slicer()
         results = te.add_work(task_seq=self.last_execution_seq, inputs_required=pre_computed_results)
 
         if crumb.settings.debug:

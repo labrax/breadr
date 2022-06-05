@@ -193,7 +193,7 @@ class Slice:
             pprint(nodes_seq)
         return nodes_seq
     
-    def run(self, input=None, number_processes=2):
+    def run(self, input=None):
         self.last_execution_seq = self._compute_execution_seq()
 
         # these will go to the slicer

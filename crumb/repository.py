@@ -13,15 +13,6 @@ class CrumbRepository(object):
             crumb_repository_instance.reset()
         return crumb_repository_instance
 
-    def _check_deps(self, deps):
-        if deps is not None:
-            _not_module = list()
-            for i in deps:
-                if not inspect.ismodule(i):
-                    _not_module.append(i)
-            if len(_not_module) > 0:
-                raise ValueError('dependencies added must be python modules. invalid dependencies are "{}"'.format('", "'.join(_not_module)))
-
     def add_crumb(self, name, func, input, output):
         """
         Adds a crumb to the repository. Do not call this function directly, use the decorator.

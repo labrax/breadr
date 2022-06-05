@@ -83,6 +83,7 @@ class TestGraph(unittest.TestCase):
         print(s._check_input_complete(only_in_output=True))
 
         print('---')
+        settings.multislicer = True
         ret = s.run(input={'in': 1, 'in2': 10, 'in3': 5})
         print('>>>', ret)
 

@@ -5,6 +5,7 @@ import crumb
 
 class TestInputErrors(unittest.TestCase):
     def test_definition_missing_input(self):
+        crumb.settings.multislicer = False
         def _test():
             @crumb.crumb(output=int)
             def func(valid):
@@ -12,6 +13,7 @@ class TestInputErrors(unittest.TestCase):
         self.assertRaises(ValueError, _test)
 
     def test_definition_but_not_in_params(self):
+        crumb.settings.multislicer = False
         def _test():
             @crumb.crumb(input='invalid', output=None)
             def func(valid):
@@ -19,6 +21,7 @@ class TestInputErrors(unittest.TestCase):
         self.assertRaises(ValueError, _test)
 
     def test_definition_but_no_params(self):
+        crumb.settings.multislicer = False
         def _test():
             @crumb.crumb(input='invalid', output=None)
             def func():
@@ -26,6 +29,7 @@ class TestInputErrors(unittest.TestCase):
         self.assertRaises(ValueError, _test)
 
     def test_definition_missing(self):
+        crumb.settings.multislicer = False
         def _test():
             @crumb.crumb(output=None)
             def func(valid):
@@ -33,6 +37,7 @@ class TestInputErrors(unittest.TestCase):
         self.assertRaises(ValueError, _test)
 
     def test_definition_missing_output(self):
+        crumb.settings.multislicer = False
         def _test():
             @crumb.crumb()
             def func(valid):

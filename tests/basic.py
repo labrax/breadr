@@ -4,6 +4,7 @@ import unittest
 from crumb import crumb, CrumbRepository
 from crumb.slice import Slice
 from crumb.crumb import Crumb
+import crumb.settings as settings
 
 cr = CrumbRepository()
 
@@ -11,6 +12,7 @@ class TestBasics(unittest.TestCase):
     def test_crumb(self):
         cr.reset()
 
+        settings.multislicer = False
         @crumb(output=int, name='func_test')
         def func(aa=3):
             return aa

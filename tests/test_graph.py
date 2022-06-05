@@ -1,10 +1,9 @@
 
 import unittest
 
-from crumb import crumb
+import crumb.settings as settings
 from crumb.slice import Slice
 from crumb.repository import CrumbRepository
-from crumb.node import Node
 
 cr = CrumbRepository()
 

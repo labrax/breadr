@@ -191,9 +191,17 @@ class MultiSlicer(Slicer):
         self.lock.acquire()
 
         # need to remove the functions to prepare for running
+        # this is because multiprocessing might not be able to find the function (e.g. on Windows)
+        def _prepare_node_for_exec(node):
+            if node.bakery_item.__class__.__name__ == 'Crumb':
+                node.bakery_item.func = None
+            elif node.bakery_item.__class__.__name__ == 'Slice':
+                for sub_node in node.bakery_item.values():
+                    _prepare_node_for_exec(sub_node['node'])
+            else:
+                raise NotImplementedError('bakery item inside node not known')
         for el in task_seq:
-            node = el['node']
-            node.bakery_item.prepare_for_exec()
+            _prepare_node_for_exec(el['node'])
 
         try:
             # if some nodes require some input add them to the relation first

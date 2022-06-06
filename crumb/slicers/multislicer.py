@@ -5,7 +5,7 @@ from multiprocessing import Manager, Lock, Process, Queue
 from queue import Empty
 import time
 
-from .base import Slicer
+from .generic import Slicer
 
 def do_work(tasks_to_be_done, tasks_that_are_done):
     while True:

@@ -1,5 +1,5 @@
 
-from .base import Slicer
+from .generic import Slicer
 import crumb.settings
 
 class SingleSlicer(Slicer):

@@ -4,6 +4,7 @@ import crumb.settings
 from multiprocessing import Manager, Lock, Process, Queue
 from queue import Empty
 import time
+import atexit
 
 from .generic import Slicer
 
@@ -27,7 +28,6 @@ def do_schedule(lock, tasks_to_be_done, tasks_that_are_done, results, input_for_
     while True:
         if crumb.settings.debug:
             print('scheduler> loop')
-        
         # compile tasks that are done
         if crumb.settings.debug:
             print(f'scheduler> there are still {len(node_waiting)} waiting')
@@ -121,10 +121,9 @@ class MultiSlicer(Slicer):
             task_executor_instance.reset()
         return task_executor_instance
 
-    def __del__(self):
-        self.kill()
-
     def kill(self):
+        if crumb.settings.debug:
+            print('multislicer> starting kill ritual')
         if hasattr(self, 'processes'):
             # if task executor was started before lets kill everything then restart
             while not self.tasks_to_be_done.empty():
@@ -133,7 +132,7 @@ class MultiSlicer(Slicer):
                 except Empty:
                     pass
             self.tasks_done.put({'node': None, 'input': {'kill': True}}) # one for the scheduler
-            for _ in range(len(self.processes) - 1):
+            for _ in range(len(self.processes)):
                 self.tasks_to_be_done.put({'node': None, 'input': {'kill': True}}) # other for workers/wait
             if crumb.settings.debug:
                 print(f'{self.__class__.__name__} waiting for all processes to join')
@@ -147,6 +146,8 @@ class MultiSlicer(Slicer):
         @param number_processes: restarts the MultiSlicer with a number of work processes
         """
         self.kill()
+        if not hasattr(self, 'processes'):
+            atexit.register(self.kill) # this is because __del__ is too late!
 
         self.manager = Manager()
         self.lock = Lock()
@@ -236,6 +237,7 @@ class MultiSlicer(Slicer):
         self.processes.append(p)
         p.start()
         p.join()
+        self.processes.remove(p)
         
         to_ret = dict()
         for i in task_seq:

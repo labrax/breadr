@@ -21,8 +21,6 @@ class TestBasics(unittest.TestCase):
     
 class TestSlice(unittest.TestCase):
     def test_slice(self):
-        cr.reset()
-
         import tests.sample_crumbs # crumbs needed
 
         s = Slice(name='first slice')
@@ -35,14 +33,12 @@ class TestSlice(unittest.TestCase):
 
         s2 = Slice(name='first slice')
         s2.from_json(s.to_json())
-        print(s2.to_json())
+        # print(s2.to_json())
 
         self.assertEqual(s.to_json(), s2.to_json())
 
 class TestJSON(unittest.TestCase):
     def test_tofrom(self):
-        cr.reset()
-
         import tests.singleton_m2 # crumbs needed!
 
         c_f2 = cr.get_crumb('f2')

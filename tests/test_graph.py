@@ -4,6 +4,7 @@ import unittest
 import crumb.settings as settings
 from crumb.bakery_items.slice import Slice
 from crumb.repository import CrumbRepository
+from crumb.slicers.slicers import delete_slicer
 
 cr = CrumbRepository()
 
@@ -69,7 +70,7 @@ class TestGraph(unittest.TestCase):
         s.add_link(n5, None, n3, 'a')
         s.add_link(n6, None, n3, 'b')
 
-        from pprint import pprint
+        # from pprint import pprint
 
         # pprint(s.nodes[n1]['node'].output)
         # pprint(s.nodes[n6]['node'].input)
@@ -80,7 +81,9 @@ class TestGraph(unittest.TestCase):
         # print(s._check_graph_circular())
         # print(s._check_input_complete(only_in_output=True))
 
-        settings.multislicer = False
+        from crumb.slicers.slicers import delete_slicer
+        delete_slicer() # ensure parallel will be used
+        settings.multislicer = True
         ret = s.run(input={'in': 1, 'in2': 10, 'in3': 5})
 
         self.assertEqual(ret['out'], 16)

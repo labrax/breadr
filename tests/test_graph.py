@@ -34,9 +34,9 @@ class TestGraph(unittest.TestCase):
         s.add_input('in3', int)
         s.add_output('out2', int)
 
-        s.add_crumb('get5', cr.get_crumb('get5'))
-        s.add_crumb('add15', cr.get_crumb('add15'))
-        s.add_crumb('minus', cr.get_crumb('minus'))
+        s.add_bakery_item('get5', cr.get_crumb('get5'))
+        s.add_bakery_item('add15', cr.get_crumb('add15'))
+        s.add_bakery_item('minus', cr.get_crumb('minus'))
 
         n1 = s.add_node('get5')
         n2 = s.add_node('add15')
@@ -57,7 +57,12 @@ class TestGraph(unittest.TestCase):
 
         s.add_output_mapping('out', _n, None)
         s.remove_output_mapping('out', _n, None)
+
+        t1 = len(cr.get_crumb('minus').get_nodes_using())
         s.remove_node(_n)
+        t2 = len(cr.get_crumb('minus').get_nodes_using())
+
+        self.assertLess(t2, t1)
 
         s.add_output_mapping('out', n3, None)
         s.add_output_mapping('out2', n4, None)

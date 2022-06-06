@@ -24,8 +24,8 @@ class TestSlice(unittest.TestCase):
         import tests.sample_crumbs # crumbs needed
 
         s = Slice(name='first slice')
-        s.add_crumb('a1', cr.get_crumb('a1'))
-        s.add_crumb('a2', cr.get_crumb('a2'))
+        s.add_bakery_item('a1', cr.get_crumb('a1'))
+        s.add_bakery_item('a2', cr.get_crumb('a2'))
 
         # print(s)
         # print(s.get_deps())

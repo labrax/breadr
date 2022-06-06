@@ -16,11 +16,11 @@ from crumb.bakery_items.generic import BakeryItem
 
 class Slice(BakeryItem):
     def __init__(self, name):
+        # in the case of slice, input and output are {'name': <type>}
+        super().__init__(name, input=dict(), output=dict())
         self.version = __slice_serializer_version__
-        self.name = name
-        self.input = dict() # {'name': <type>}
+
         self._input_mapping = dict() # {'input_name': {'node name': ['Node input name']}} # an input to slice can go to multiple bakery_items
-        self.output = dict() # {'name': <type>}
         self._output_mapping = dict() # {'output_name': ('node name', 'Node output name'])} # an output can com from a single bakery_item
         
         self.bakery_items = dict() # {'name given': {'bakery_item': bakery_item, 'type': class name of bakery item}}
@@ -31,9 +31,115 @@ class Slice(BakeryItem):
         self._required_input = None
         self.last_execution_seq = None
 
-        self.is_used = False # if it is being used in a Node
+    def __repr__(self):
+        return f'{self.__class__.__name__} at {hex(id(self))} with {len(self.bakery_items)} crumbs'
 
-    def add_crumb(self, name, bakery_item):
+    def __str__(self):
+        return self.__repr__() 
+
+    def from_json(self, json_str):
+        json_str = json.loads(json_str)
+        if json_str['version'] > __slice_serializer_version__:
+            raise ImportError('Imported file has a higher version')
+        self.version = __slice_serializer_version__
+        self.name = json_str['slice_name']
+        
+        self.input = {i:ast.literal_eval(j) for i,j in json_str['input']['objects'].items()} if json_str['input']['objects'] else {}
+        self._input_mapping = json_str['input']['mapping']
+        self.output = {i:ast.literal_eval(j) for i,j in json_str['output']['objects'].items()} if json_str['output']['objects'] else {}
+        self._output_mapping = json_str['output']['mapping']
+
+        def _create_bi_from_instance(json_str, type):
+            if type == 'Crumb':
+                return Crumb.create_from_json(json_str)
+            elif type == 'Slice':
+                s = Slice(name='_dummy')
+                s.from_json(json_str)
+                return s
+            else:
+                raise NotImplementedError('Can only handle Crumb and Slice objects')
+
+        self.bakery_items = {i:{
+            'bakery_item': _create_bi_from_instance(j['bakery_item'], j['type']),
+            'type': j['type']
+        } for i, j in json_str['bakery_items'].items()} if json_str['bakery_items'] else {}
+
+    def to_json(self):
+        this_structure = {
+            'slice_name': self.name,
+            'version': __slice_serializer_version__,
+            'input': {
+                'objects': {i:j.__name__ for i,j in self.input.items()} if self.input else {},
+                'mapping': self._input_mapping
+            },
+            'output': {
+                'objects': {i:j.__name__ for i,j in self.output.items()} if self.output else {},
+                'mapping': self._output_mapping
+            },
+            'bakery_items': {i: {
+                'bakery_item': j['bakery_item'].to_json(),
+                'type': j['type']
+            } for i, j in self.bakery_items.items()} if self.bakery_items else {}
+        }
+        return json.dumps(this_structure)
+
+    def load_from_file(self, path):
+        with open(path) as f:
+            self.from_json(f.read())
+
+    def save_to_file(self, path, overwrite=False):
+        if not overwrite:
+            if os.path.exists(path):
+                raise FileExistsError(f'File {path} already exists. Use parameter "overwrite" to replace.')
+        with open(path, 'w') as of:
+            of.write(self.to_json)
+    
+    def reload(self):
+        for i in self.bakery_items.values():
+            i['bakery_item'].reload()
+
+    def run(self, input=dict()):
+        self.last_execution_seq = self._compute_execution_seq()
+
+        # these will go to the slicer
+        pre_computed_results = {} #{(node_name, node_input): value}
+        _missing_input = list() # in case something is missing
+        for name, data in self._input_mapping.items():
+            for node_name, node_input in data.items():
+                if not name in input:
+                    _missing_input.append(name)
+                else:
+                    if crumb.settings.debug:
+                        print('slicer will get --->', (node_name, node_input[0]))
+                    pre_computed_results[(node_name, node_input[0])] = input[name]
+        if len(_missing_input) > 0:
+            raise RuntimeError(f'Missing inputs to Slice {self}, add variables: "{_missing_input}"')
+
+        # print(self.last_execution_seq)
+        te = get_slicer()
+        results = te.add_work(task_seq=self.last_execution_seq, inputs_required=pre_computed_results)
+
+        if crumb.settings.debug:
+            print('Results of slice execution are:', results)
+
+        # populated nodes with output if needed
+        for node in self.nodes.values():
+            node = node['node']
+            if node in self.last_execution_seq: # node was executed
+                if not node.name in results:
+                    raise RuntimeError('Expected result to be in here but is not') #TODO: possibly this can become a warning
+                else:
+                    if node.save_exec:
+                        node.last_exec = results[node.name]
+        
+        # obtain output for this slice:
+        results_to_return = dict()
+        for output_name, (node_name, node_output_name) in self._output_mapping.items():
+            results_to_return[output_name] = results[node_name][node_output_name]
+
+        return results_to_return
+
+    def add_bakery_item(self, name, bakery_item):
         """
         Add bakery item to this Slice so it can be used
         @param name: name to be used here
@@ -65,6 +171,7 @@ class Slice(BakeryItem):
         if self.nodes[node_name]['node'].has_links():
             raise RuntimeError(f'Cannot remove "{node_name}", it is connected to other nodes!')
         
+        self.nodes[node_name]['node'].bakery_item.remove_node_using(self.nodes[node_name]['node'])
         self.nodes.pop(node_name)
 
     def _check_input_exists(self, name, check_mapping=True):
@@ -130,7 +237,7 @@ class Slice(BakeryItem):
             max_it = it
         return max_it
 
-    def get_nodes_missing_input(self, only_in_output=True):
+    def _get_nodes_missing_input(self, only_in_output=True):
         if only_in_output:
             stack = list({self.nodes[node]['node'] for node, _ in self._output_mapping.values()})
         else:
@@ -154,7 +261,7 @@ class Slice(BakeryItem):
         return input_undefined
 
     def _check_input_complete(self, only_in_output=True):
-        input_undefined = self.get_nodes_missing_input(only_in_output=only_in_output)
+        input_undefined = self._get_nodes_missing_input(only_in_output=only_in_output)
         self._required_input = input_undefined
         
         # remove the ones that will be given on the run call
@@ -177,14 +284,6 @@ class Slice(BakeryItem):
         self._check_input_complete()
         self._graph_checked = True
 
-    def reload(self):
-        for i in self.bakery_items.values():
-            i['bakery_item'].reload()
-
-    def prepare_for_exec(self):
-        for i in self.bakery_items.values():
-            i['bakery_item'].prepare_for_exec()
-
     def _compute_execution_seq(self):
         if not self._graph_checked:
             self._check_graph() # in case of error an exception will be raised
@@ -203,47 +302,6 @@ class Slice(BakeryItem):
             print('execu graph is>')
             pprint(nodes_seq)
         return nodes_seq
-    
-    def run(self, input=dict()):
-        self.last_execution_seq = self._compute_execution_seq()
-
-        # these will go to the slicer
-        pre_computed_results = {} #{(node_name, node_input): value}
-        _missing_input = list() # in case something is missing
-        for name, data in self._input_mapping.items():
-            for node_name, node_input in data.items():
-                if not name in input:
-                    _missing_input.append(name)
-                else:
-                    if crumb.settings.debug:
-                        print('slicer will get --->', (node_name, node_input[0]))
-                    pre_computed_results[(node_name, node_input[0])] = input[name]
-        if len(_missing_input) > 0:
-            raise RuntimeError(f'Missing inputs to Slice {self}, add variables: "{_missing_input}"')
-
-        # print(self.last_execution_seq)
-        te = get_slicer()
-        results = te.add_work(task_seq=self.last_execution_seq, inputs_required=pre_computed_results)
-
-        if crumb.settings.debug:
-            print('Results of slice execution are:', results)
-
-        # populated nodes with output if needed
-        for node in self.nodes.values():
-            node = node['node']
-            if node in self.last_execution_seq: # node was executed
-                if not node.name in results:
-                    raise RuntimeError('Expected result to be in here but is not') #TODO: possibly this can become a warning
-                else:
-                    if node.save_exec:
-                        node.last_exec = results[node.name]
-        
-        # obtain output for this slice:
-        results_to_return = dict()
-        for output_name, (node_name, node_output_name) in self._output_mapping.items():
-            results_to_return[output_name] = results[node_name][node_output_name]
-
-        return results_to_return
 
     # slice input and output functions
     def add_input(self, name, type):
@@ -386,69 +444,3 @@ class Slice(BakeryItem):
         A.remove_output(this_output_name=nodeA_output, other_node=B, other_node_variable=nodeB_input)
         B.remove_input(this_variable=nodeB_input)
         self._graph_checked = False
-    #
-
-    def __repr__(self):
-        return f'{self.__class__.__name__} at {hex(id(self))} with {len(self.bakery_items)} crumbs'
-
-    def __str__(self):
-        return self.__repr__()    
-
-    # json save load
-    def to_json(self):
-        this_structure = {
-            'slice_name': self.name,
-            'version': __slice_serializer_version__,
-            'input': {
-                'objects': {i:j.__name__ for i,j in self.input.items()} if self.input else {},
-                'mapping': self._input_mapping
-            },
-            'output': {
-                'objects': {i:j.__name__ for i,j in self.output.items()} if self.output else {},
-                'mapping': self._output_mapping
-            },
-            'bakery_items': {i: {
-                'bakery_item': j['bakery_item'].to_json(),
-                'type': j['type']
-            } for i, j in self.bakery_items.items()} if self.bakery_items else {}
-        }
-        return json.dumps(this_structure)
-
-    def from_json(self, json_str):
-        json_str = json.loads(json_str)
-        if json_str['version'] > __slice_serializer_version__:
-            raise ImportError('Imported file has a higher version')
-        self.version = __slice_serializer_version__
-        self.name = json_str['slice_name']
-        
-        self.input = {i:ast.literal_eval(j) for i,j in json_str['input']['objects'].items()} if json_str['input']['objects'] else {}
-        self._input_mapping = json_str['input']['mapping']
-        self.output = {i:ast.literal_eval(j) for i,j in json_str['output']['objects'].items()} if json_str['output']['objects'] else {}
-        self._output_mapping = json_str['output']['mapping']
-
-        def _create_bi_from_instance(json_str, type):
-            if type == 'Crumb':
-                return Crumb.create_from_json(json_str)
-            elif type == 'Slice':
-                s = Slice(name='_dummy')
-                s.from_json(json_str)
-                return s
-            else:
-                raise NotImplementedError('Can only handle Crumb and Slice objects')
-
-        self.bakery_items = {i:{
-            'bakery_item': _create_bi_from_instance(j['bakery_item'], j['type']),
-            'type': j['type']
-        } for i, j in json_str['bakery_items'].items()} if json_str['bakery_items'] else {}
-
-    def save(self, path, overwrite=False):
-        if not overwrite:
-            if os.path.exists(path):
-                raise FileExistsError(f'File {path} already exists. Use parameter "overwrite" to replace.')
-        with open(path, 'w') as of:
-            of.write(self.to_json)
-
-    def load(self, path):
-        with open(path) as f:
-            self.from_json(f.read())
-    

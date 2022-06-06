@@ -16,18 +16,83 @@ class Crumb(BakeryItem):
         @param func: a function
         @param input: the input of the function: {'param1': int, 'param2': class, ...}
         @param output: the output of the function, int, float, class, ..., obtained from type()
-        @param save_exec: boolean save the output of the execution on memory?
         """
+        super().__init__(name, input, output)
         self._crumb_check_input(func, input)
-
-        self.name = name
+        
         self.file = file.replace('\\', '/')
-        self.input = input
-        self.output = output
         self.func = func
 
         self.is_used = False # if it is being used in a Node
     
+    def __repr__(self):
+        return f'{self.__class__.__name__} at {hex(id(self))} with ({self.input})=>({str(self.output)})'
+
+    def __str__(self):
+        return self.__repr__()
+
+    @classmethod
+    def create_from_json(self, json_str):
+        """
+        Starts a Crumb based on a json string
+        @param json_str
+        """
+        def f1(a=1):
+            return None
+        crumb = Crumb('f1', '.', f1, input=None, output=None)
+        crumb.from_json(json_str)
+        return crumb
+
+    def load_from_file(self, filepath, this_name):
+        from crumb.repository import CrumbRepository
+        cr = CrumbRepository()
+        # redirect crumbs creation to ensure we have the right function
+        crumbs_repo = dict()
+        redirect_status = cr._redirect
+        cr.redirect({'target': crumbs_repo})
+        # load file to recover crumbs
+        path, pkg = os.path.split(filepath)
+        spec = importlib.util.spec_from_file_location(os.path.splitext(pkg)[0], filepath)
+        mod = importlib.util.module_from_spec(spec)
+        m = spec.loader.exec_module(mod)
+        # get crumb
+        restored_crumb = cr.get_crumb(this_name)
+        self.name = this_name
+        self.input = restored_crumb.input
+        self.output = restored_crumb.output
+        self.file = filepath
+        self.func = restored_crumb.func
+        # restore redirection
+        cr._redirect = redirect_status
+
+    def from_json(self, json_str):
+        json_str = json.loads(json_str)
+
+        filepath = json_str['executable']['file']
+        crumb_name = json_str['name']
+
+        self.load_from_file(filepath, crumb_name)
+
+    def to_json(self):
+        this_structure = {
+            'name': self.name,
+            'input': {i:j.__name__ for i,j in self.input.items()} if self.input else {},
+            'output': self.output.__name__,
+            'executable': {
+                'file': self.file,
+                'func': self.func.__name__
+            }
+        }
+        return json.dumps(this_structure)
+
+    def reload(self):
+        self.load_from_file(self.file, self.name)
+
+    def run(self, input):
+        if self.func is None:
+            self.reload()
+        return self.func(**input)
+
     def _get_args(self, func):
         sign = inspect.signature(func)
         return { k:v.default for k,v in sign.parameters.items()}
@@ -67,67 +132,3 @@ class Crumb(BakeryItem):
             err += 'input definition missing for a parameter without default value: "{}"'.format('", "'.join(_not_valid_missing))
         if len(err) > 0:
             raise ValueError(err)
-
-    def run(self, input):
-        if self.func is None:
-            self.reload()
-        return self.func(**input)
-
-    def __repr__(self):
-        return f'{self.__class__.__name__} at {hex(id(self))} with ({self.input})=>({str(self.output)})'
-
-    def __str__(self):
-        return self.__repr__()
-
-    def to_json(self):
-        this_structure = {
-            'name': self.name,
-            'input': {i:j.__name__ for i,j in self.input.items()} if self.input else {},
-            'output': self.output.__name__,
-            'executable': {
-                'file': self.file,
-                'func': self.func.__name__
-            }
-        }
-        return json.dumps(this_structure)
-
-    def from_json(self, json_str):
-        json_str = json.loads(json_str)
-
-        filepath = json_str['executable']['file']
-        crumb_name = json_str['name']
-
-        self.load_from_file(filepath, crumb_name)
-
-    def load_from_file(self, filepath, this_name):
-        from crumb.repository import CrumbRepository
-        cr = CrumbRepository()
-        # redirect crumbs creation to ensure we have the right function
-        crumbs_repo = dict()
-        redirect_status = cr._redirect
-        cr.redirect({'target': crumbs_repo})
-        # load file to recover crumbs
-        path, pkg = os.path.split(filepath)
-        spec = importlib.util.spec_from_file_location(os.path.splitext(pkg)[0], filepath)
-        mod = importlib.util.module_from_spec(spec)
-        m = spec.loader.exec_module(mod)
-        # get crumb
-        restored_crumb = cr.get_crumb(this_name)
-        self.name = this_name
-        self.input = restored_crumb.input
-        self.output = restored_crumb.output
-        self.file = filepath
-        self.func = restored_crumb.func
-        # restore redirection
-        cr._redirect = redirect_status
-
-    def reload(self):
-        self.load_from_file(self.file, self.name)
-    
-    @classmethod
-    def create_from_json(self, json_str):
-        def f1(a=1):
-            return None
-        crumb = Crumb('f1', '.', f1, input=None, output=None)
-        crumb.from_json(json_str)
-        return crumb

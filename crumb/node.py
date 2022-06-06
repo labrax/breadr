@@ -11,7 +11,7 @@ class Node:
             name = id(self)
         self.name = name
         self.bakery_item = bakery_item
-        self.bakery_item.is_used = True
+        self.bakery_item.add_node_using(self)
         self.save_exec = False
         self.last_exec = {}
 
@@ -28,6 +28,12 @@ class Node:
             else:
                 # this code should never run as error already in __init__
                 raise NotImplementedError(f'"{self.bakery_item.__class__.__name__}" is not implemented for node')
+
+    def __repr__(self):
+        return f'{self.__class__.__name__} at {hex(id(self))} ({self.n_links()} links): ({str(self.bakery_item)})'
+
+    def __str__(self):
+        return self.__repr__()
 
     def n_links_in(self):
         """
@@ -153,12 +159,6 @@ class Node:
         if not other_node in self.output[this_output_name]:
             raise RuntimeError(f'"{other_node}" is not in our list of outputs')
         self.output[this_output_name][other_node].remove(other_node_variable)
-    
-    def __repr__(self):
-        return f'{self.__class__.__name__} at {hex(id(self))} ({self.n_links()} links): ({str(self.bakery_item)})'
-
-    def __str__(self):
-        return self.__repr__()
 
     def run(self, input):
         """

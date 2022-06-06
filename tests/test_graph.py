@@ -2,7 +2,7 @@
 import unittest
 
 import crumb.settings as settings
-from crumb.slice import Slice
+from crumb.bakery_items.slice import Slice
 from crumb.repository import CrumbRepository
 
 cr = CrumbRepository()

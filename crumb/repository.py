@@ -2,7 +2,7 @@
 import inspect
 import warnings
 
-from crumb.crumb import Crumb
+from crumb.bakery_items.crumb import Crumb
 
 class CrumbRepository(object):
     def __new__(cls):

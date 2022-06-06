@@ -4,8 +4,10 @@ import json
 import importlib
 import os
 
+from crumb.bakery_items.generic import BakeryItem
 
-class Crumb:
+
+class Crumb(BakeryItem):
     def __init__(self, name, file, func, input=None, output=None):
         """
         Starts a crumb object. Do not call this function directly, use the decorator.
@@ -97,7 +99,7 @@ class Crumb:
 
         self.load_from_file(filepath, crumb_name)
 
-    def load_from_file(self, filepath, crumb_name):
+    def load_from_file(self, filepath, this_name):
         from crumb.repository import CrumbRepository
         cr = CrumbRepository()
         # redirect crumbs creation to ensure we have the right function
@@ -110,8 +112,8 @@ class Crumb:
         mod = importlib.util.module_from_spec(spec)
         m = spec.loader.exec_module(mod)
         # get crumb
-        restored_crumb = cr.get_crumb(crumb_name)
-        self.name = crumb_name
+        restored_crumb = cr.get_crumb(this_name)
+        self.name = this_name
         self.input = restored_crumb.input
         self.output = restored_crumb.output
         self.file = filepath
@@ -121,10 +123,7 @@ class Crumb:
 
     def reload(self):
         self.load_from_file(self.file, self.name)
-
-    def prepare_for_exec(self):
-        self.func = None
-
+    
     @classmethod
     def create_from_json(self, json_str):
         def f1(a=1):

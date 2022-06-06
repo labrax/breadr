@@ -1,27 +1,30 @@
 
 import itertools
+from multiprocessing.sharedctypes import Value
 import os
 import json
 import ast
 
 import crumb.settings
-from crumb.crumb import Crumb
-from . import __slicer_version__
+from crumb import __slice_serializer_version__
 
 from crumb.node import Node
 from crumb.slicers.slicers import get_slicer
+from crumb.bakery_items.crumb import Crumb
+from crumb.bakery_items.generic import BakeryItem
 
-class Slice:
+
+class Slice(BakeryItem):
     def __init__(self, name):
-        self.version = __slicer_version__
+        self.version = __slice_serializer_version__
         self.name = name
         self.input = dict() # {'name': <type>}
         self._input_mapping = dict() # {'input_name': {'node name': ['Node input name']}} # an input to slice can go to multiple bakery_items
         self.output = dict() # {'name': <type>}
         self._output_mapping = dict() # {'output_name': ('node name', 'Node output name'])} # an output can com from a single bakery_item
         
-        self.crumbs = dict() # {'name given': {'crumb': crumb}}
-        self.nodes = dict() # {'identifier': {'node': Node, 'type': 'slice crumb's name'}}
+        self.bakery_items = dict() # {'name given': {'bakery_item': bakery_item, 'type': class name of bakery item}}
+        self.nodes = dict() # {'identifier': {'node': Node, 'instance_of': 'slice crumb's name'}}
 
         self._graph_checked = False
         # these are the nodes that require input, if _graph_checked is True, they are in _input_mapping format is {node: {'node var': 'node var type'}}
@@ -30,29 +33,37 @@ class Slice:
 
         self.is_used = False # if it is being used in a Node
 
-    def add_crumb(self, name, crumb):
-        if name in self.crumbs:
-            raise ValueError(f'crumb "{name}" already in Slice')
-        self.crumbs[name] = {'crumb': crumb}
+    def add_crumb(self, name, bakery_item):
+        """
+        Add bakery item to this Slice so it can be used
+        @param name: name to be used here
+        @param bakery_item: bakery_item name
+        """
+        if not isinstance(bakery_item, BakeryItem):
+            raise ValueError(f'Object needs to be instance of class BakeryItem, it is "{bakery_item.__class__.__name__}"')
+        if name in self.bakery_items:
+            raise ValueError(f'A bakery item with name "{name}" is already in this Slice ({self.name})')
+        self.bakery_items[name] = {'bakery_item': bakery_item,
+                                   'type': bakery_item.__class__.__name__}
 
-    def add_node(self, crumb_name):
-        n = Node(self.crumbs[crumb_name]['crumb'])
+    def add_node(self, bi_name):
+        n = Node(self.bakery_items[bi_name]['bakery_item'])
         self.nodes[n.name] = {'node': n,
-                              'type': crumb_name}
+                              'instance_of': bi_name}
         return n.name
 
     def remove_node(self, node_name):
         for i in self._input_mapping.values():
             if node_name in i:
-                raise RuntimeError(f'cannot remove "{node_name}" as it is linked to input')
+                raise RuntimeError(f'Cannot remove "{node_name}", it is linked to input!')
 
         for i in self._output_mapping.values():
             if not i is None:
                 if node_name in i:
-                    raise RuntimeError(f'cannot remove "{node_name}" as it is linked to output')
+                    raise RuntimeError(f'Cannot remove "{node_name}", it is linked to output!')
 
         if self.nodes[node_name]['node'].has_links():
-            raise RuntimeError(f'cannot remove "{node_name}" as it is connect in the graph')
+            raise RuntimeError(f'Cannot remove "{node_name}", it is connected to other nodes!')
         
         self.nodes.pop(node_name)
 
@@ -159,7 +170,7 @@ class Slice:
         # if we still have things missing we need to call quits as they need to be mapped
         if input_undefined:
             err = '\n'.join(['\t{}, elements: "{}"'.format(node, '", "'.join([str(i[0]) for i in inps])) for node, inps in input_undefined.items()])
-            raise RuntimeError('input is undefined for at least one node:\n"{}"'.format(err))
+            raise RuntimeError('Input is undefined for at least one node:\n"{}"'.format(err))
 
     def _check_graph(self):
         self._check_graph_circular()
@@ -167,12 +178,12 @@ class Slice:
         self._graph_checked = True
 
     def reload(self):
-        for i in self.crumbs.values():
-            i['crumb'].reload()
+        for i in self.bakery_items.values():
+            i['bakery_item'].reload()
 
     def prepare_for_exec(self):
-        for i in self.crumbs.values():
-            i['crumb'].prepare_for_exec()
+        for i in self.bakery_items.values():
+            i['bakery_item'].prepare_for_exec()
 
     def _compute_execution_seq(self):
         if not self._graph_checked:
@@ -193,7 +204,7 @@ class Slice:
             pprint(nodes_seq)
         return nodes_seq
     
-    def run(self, input=None):
+    def run(self, input=dict()):
         self.last_execution_seq = self._compute_execution_seq()
 
         # these will go to the slicer
@@ -208,21 +219,21 @@ class Slice:
                         print('slicer will get --->', (node_name, node_input[0]))
                     pre_computed_results[(node_name, node_input[0])] = input[name]
         if len(_missing_input) > 0:
-            raise RuntimeError(f'missing inputs to Slice {self}, add variables: "{_missing_input}"')
+            raise RuntimeError(f'Missing inputs to Slice {self}, add variables: "{_missing_input}"')
 
         # print(self.last_execution_seq)
         te = get_slicer()
         results = te.add_work(task_seq=self.last_execution_seq, inputs_required=pre_computed_results)
 
         if crumb.settings.debug:
-            print('results of slice execution are:', results)
+            print('Results of slice execution are:', results)
 
         # populated nodes with output if needed
         for node in self.nodes.values():
             node = node['node']
             if node in self.last_execution_seq: # node was executed
                 if not node.name in results:
-                    raise RuntimeError('expected result to be in here but is not') #TODO: possibly this can become a warning
+                    raise RuntimeError('Expected result to be in here but is not') #TODO: possibly this can become a warning
                 else:
                     if node.save_exec:
                         node.last_exec = results[node.name]
@@ -339,7 +350,7 @@ class Slice:
         if node_name != self._output_mapping[name][0]:
             raise RuntimeError(f'"{node_name}" not in output mapping')
         if node_output != self._output_mapping[name][1]:
-            raise RuntimeError(f'another element was in the output, not "{node_output}"')
+            raise RuntimeError(f'Cannot remove: another element was in the output, not "{node_output}"')
         self._output_mapping[name] = None
         self._graph_checked = False
     #
@@ -361,6 +372,13 @@ class Slice:
         B.add_input(this_variable=nodeB_input, other_node=A, other_node_name=nodeA_output)
 
     def remove_link(self, nodeA, nodeA_output, nodeB, nodeB_input):
+        """
+        Remove links between two nodes
+        @param nodeA: first node
+        @param nodeA_output: first node output name
+        @param nodeB: second node
+        @param nodeB_output: second node output name
+        """
         self._check_node_exists(nodeA, node_output=nodeA_output)
         self._check_node_exists(nodeB, node_input=nodeB_input)
         A = self.nodes[nodeA]['node']
@@ -371,7 +389,7 @@ class Slice:
     #
 
     def __repr__(self):
-        return f'{self.__class__.__name__} at {hex(id(self))} with {len(self.crumbs)} crumbs'
+        return f'{self.__class__.__name__} at {hex(id(self))} with {len(self.bakery_items)} crumbs'
 
     def __str__(self):
         return self.__repr__()    
@@ -380,7 +398,7 @@ class Slice:
     def to_json(self):
         this_structure = {
             'slice_name': self.name,
-            'version': __slicer_version__,
+            'version': __slice_serializer_version__,
             'input': {
                 'objects': {i:j.__name__ for i,j in self.input.items()} if self.input else {},
                 'mapping': self._input_mapping
@@ -389,17 +407,18 @@ class Slice:
                 'objects': {i:j.__name__ for i,j in self.output.items()} if self.output else {},
                 'mapping': self._output_mapping
             },
-            'crumbs': {i: {
-                'crumb': j['crumb'].to_json()
-            } for i, j in self.crumbs.items()} if self.crumbs else {}
+            'bakery_items': {i: {
+                'bakery_item': j['bakery_item'].to_json(),
+                'type': j['type']
+            } for i, j in self.bakery_items.items()} if self.bakery_items else {}
         }
         return json.dumps(this_structure)
 
     def from_json(self, json_str):
         json_str = json.loads(json_str)
-        if json_str['version'] > __slicer_version__:
-            raise ImportError('imported file has a higher version')
-        self.version = __slicer_version__
+        if json_str['version'] > __slice_serializer_version__:
+            raise ImportError('Imported file has a higher version')
+        self.version = __slice_serializer_version__
         self.name = json_str['slice_name']
         
         self.input = {i:ast.literal_eval(j) for i,j in json_str['input']['objects'].items()} if json_str['input']['objects'] else {}
@@ -407,9 +426,20 @@ class Slice:
         self.output = {i:ast.literal_eval(j) for i,j in json_str['output']['objects'].items()} if json_str['output']['objects'] else {}
         self._output_mapping = json_str['output']['mapping']
 
-        self.crumbs = {i:{
-            'crumb': Crumb.create_from_json(j['crumb'])
-        } for i, j in json_str['crumbs'].items()} if json_str['crumbs'] else {}
+        def _create_bi_from_instance(json_str, type):
+            if type == 'Crumb':
+                return Crumb.create_from_json(json_str)
+            elif type == 'Slice':
+                s = Slice(name='_dummy')
+                s.from_json(json_str)
+                return s
+            else:
+                raise NotImplementedError('Can only handle Crumb and Slice objects')
+
+        self.bakery_items = {i:{
+            'bakery_item': _create_bi_from_instance(j['bakery_item'], j['type']),
+            'type': j['type']
+        } for i, j in json_str['bakery_items'].items()} if json_str['bakery_items'] else {}
 
     def save(self, path, overwrite=False):
         if not overwrite:

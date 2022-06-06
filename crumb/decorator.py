@@ -17,16 +17,16 @@ def crumb(_func=None, *, output, input=None, name=None):
     @param name: short name for this function
     """
     # check if the decorator is inside a function/class or on top level of file. this is needed to be able to reload
+    context = inspect.getframeinfo(inspect.currentframe().f_back, context=1)
+    context_filename = context.filename
+    context_function = context.function
     if settings.multislicer:
-        context = inspect.getframeinfo(inspect.currentframe().f_back, context=1)
-        context_filename = context.filename
-        context_function = context.function
         if context_function != '<module>':
-            raise RuntimeError(f'when using multislicer @crumb decorator must be used in a file top level (not inside "{context_function}")')
+            raise RuntimeError(f'When using multislicer, @crumb decorator must be used in a file top level (not inside "{context_function}")')
         if context_filename == '<stdin>':
-            raise RuntimeError(f'when using multislicer @crumb decorator must be used in a file top level (<stdin> will not work)')
-    else:
-        warnings.warn('since function is not in module root it might no be possible to load it after saving')
+            raise RuntimeError(f'When using multislicer, @crumb decorator must be used in a file top level ("<stdin>" will not work)')
+    elif context_function != '<module>' or context_filename == '<stdin>':
+        warnings.warn('Since function is not in a module root it might not be possible to reload it after saving')
 
     def decorator_add(func):
         c = CrumbRepository()

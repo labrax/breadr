@@ -3,7 +3,6 @@ import itertools
 from multiprocessing.sharedctypes import Value
 import os
 import json
-import ast
 
 import crumb.settings
 from crumb import __slice_serializer_version__
@@ -43,9 +42,22 @@ class Slice(BakeryItem):
             raise ImportError('Imported file has a higher version')
         self.version = __slice_serializer_version__
         self.name = json_str['slice_name']
-        
-        self.input = {i:ast.literal_eval(j) for i,j in json_str['input']['objects'].items()} if json_str['input']['objects'] else {}
-        self.output = {i:ast.literal_eval(j) for i,j in json_str['output']['objects'].items()} if json_str['output']['objects'] else {}
+
+        def _type_eval(type_str):
+            """
+            eval is naturally unsafe. Checks were made to improve security
+            """
+            if not all([i.isalnum() or (i == '.') for i in type_str]):
+                raise RuntimeError(f'Invalid type name "{type_str}"!')
+            else:
+                ev = eval(type_str)
+                if ev.__class__.__name__ == 'type':
+                    return ev
+                else:
+                    raise RuntimeError(f'Invalid type name "{type_str}"!')
+
+        self.input = {i:_type_eval(j) for i,j in json_str['input']['objects'].items()} if json_str['input']['objects'] else {}
+        self.output = {i:_type_eval(j) for i,j in json_str['output']['objects'].items()} if json_str['output']['objects'] else {}
 
         def _create_bi_from_instance(json_str, type):
             if type == 'Crumb':

@@ -9,7 +9,7 @@ from crumb.slicers.slicers import delete_slicer
 cr = CrumbRepository()
 
 class TestGraph(unittest.TestCase):
-    def test_node_creation(self):
+    def test_graph_parallel(self):
         import tests.sample_crumbs
         
         self.assertIn('get5', cr.crumbs)
@@ -86,10 +86,11 @@ class TestGraph(unittest.TestCase):
         # print(s._check_graph_circular())
         # print(s._check_input_complete(only_in_output=True))
 
-        from crumb.slicers.slicers import delete_slicer
         delete_slicer() # ensure parallel will be used
         settings.multislicer = True
         ret = s.run(input={'in': 1, 'in2': 10, 'in3': 5})
 
         self.assertEqual(ret['out'], 16)
         self.assertEqual(ret['out2'], 5)
+
+        # print(s.to_json())

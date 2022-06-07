@@ -24,7 +24,7 @@ class Slice(BakeryItem):
         self._output_mapping = dict() # {'output_name': ('node name', 'Node output name'])} # an output can com from a single bakery_item
         
         self.bakery_items = dict() # {'name given': {'bakery_item': bakery_item, 'type': class name of bakery item}}
-        self.nodes = dict() # {'identifier': {'node': Node, 'instance_of': 'slice crumb's name'}}
+        self.nodes = dict() # {'identifier': {'node': Node, 'instance_of': 'bakery item name'}}
 
         self._graph_checked = False
         # these are the nodes that require input, if _graph_checked is True, they are in _input_mapping format is {node: {'node var': 'node var type'}}
@@ -45,9 +45,7 @@ class Slice(BakeryItem):
         self.name = json_str['slice_name']
         
         self.input = {i:ast.literal_eval(j) for i,j in json_str['input']['objects'].items()} if json_str['input']['objects'] else {}
-        self._input_mapping = json_str['input']['mapping']
         self.output = {i:ast.literal_eval(j) for i,j in json_str['output']['objects'].items()} if json_str['output']['objects'] else {}
-        self._output_mapping = json_str['output']['mapping']
 
         def _create_bi_from_instance(json_str, type):
             if type == 'Crumb':
@@ -64,6 +62,32 @@ class Slice(BakeryItem):
             'type': j['type']
         } for i, j in json_str['bakery_items'].items()} if json_str['bakery_items'] else {}
 
+        self.nodes = dict()
+        # first start the nodes
+        for node_name, node_data in json_str['nodes'].items():
+            instance_of = node_data['instance_of']
+            save_exec, last_exec = node_data['save_exec'], node_data['last_exec']
+            n = Node(bakery_item=self.bakery_items[instance_of]['bakery_item'], name=node_name)
+            n.last_exec = last_exec
+            n.save_exec = save_exec
+            self.nodes[n.name] = {'node': n,
+                                  'instance_of': instance_of}
+        # then start the links
+        for node_name, node_data in json_str['nodes'].items():
+            link_str = node_data['link_str']
+            n = Node._get_node(Node._get_node_mapping(node_name))
+            n.links_from_json(link_str)
+
+        # translate the name of the nodes
+        self._input_mapping = {}
+        for input_name, data in json_str['input']['mapping'].items():
+            self._input_mapping[input_name] = dict()
+            for node_name, node_inputs in data.items():
+                self._input_mapping[input_name][Node._get_node_mapping(node_name)] = node_inputs
+        self._output_mapping = {}
+        for output_name, (node_name, node_output_name) in json_str['output']['mapping'].items():
+            self._output_mapping[output_name] = (Node._get_node_mapping(node_name), node_output_name)
+
     def to_json(self):
         this_structure = {
             'slice_name': self.name,
@@ -79,7 +103,13 @@ class Slice(BakeryItem):
             'bakery_items': {i: {
                 'bakery_item': j['bakery_item'].to_json(),
                 'type': j['type']
-            } for i, j in self.bakery_items.items()} if self.bakery_items else {}
+            } for i, j in self.bakery_items.items()} if self.bakery_items else {},
+            'nodes': {i: {
+                'instance_of': j['instance_of'],
+                'link_str': j['node'].links_to_json(),
+                'save_exec': j['node'].save_exec,
+                'last_exec': j['node'].last_exec
+            } for i, j in self.nodes.items()}
         }
         return json.dumps(this_structure)
 

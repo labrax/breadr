@@ -1,32 +1,35 @@
 
+import time
+
 
 class Node:
+    __node_mapping_definition = dict()
+    __node__instances = dict()
+
     def __init__(self, bakery_item, name=None):
         """
         Create a graph node.
         @param bakery_item: Slice or Crumb object
         @param name: name of the node; if None is id(self)
         """
-        if name is None:
-            name = id(self)
-        self.name = name
+        self.name = Node._get_unique_node_name(bakery_item.name, name)
+        Node._set_node(self.name, self)
         self.bakery_item = bakery_item
         self.bakery_item.add_node_using(self)
-        self.save_exec = False
+        self.save_exec = True
         self.last_exec = {}
 
-        if bakery_item.input:
-            self.input = {i:None for i in bakery_item.input.keys()} # format is {'input name': ('other Node', 'other node name')} # single input
+        if self.bakery_item.input:
+            self.input = {i:None for i in self.bakery_item.input.keys()} # format is {'input name': ('other Node', 'other node name')} # each input
         else:
             self.input = {}
 
         if self.bakery_item.output:
             if self.bakery_item.__class__.__name__ == 'Slice':
-                self.output = {i:dict() for i in self.bakery_item.output.keys()} # format is {'output name': {'other Node': [other node name]}} # multiple output
+                self.output = {i:dict() for i in self.bakery_item.output.keys()} # format is {'output name': {'other Node': [other node name, ...]}} # multiple output
             elif self.bakery_item.__class__.__name__ == 'Crumb':
                 self.output = {None:dict()}
             else:
-                # this code should never run as error already in __init__
                 raise NotImplementedError(f'"{self.bakery_item.__class__.__name__}" is not implemented for node')
 
     def __repr__(self):
@@ -34,6 +37,88 @@ class Node:
 
     def __str__(self):
         return self.__repr__()
+
+    @classmethod
+    def _set_node(cls, node_name, instance):
+        cls.__node__instances[node_name] = instance
+
+    @classmethod
+    def _get_node(cls, node_name):
+        return cls.__node__instances[node_name]
+
+    @classmethod
+    def _get_new_node_name(cls, bakery_item_name):
+        """
+        Generates new name for a node
+        @param bakery_item_name: bakery item used
+        """
+        while True: # this should not need to loop
+            newname = f'{bakery_item_name}.{time.time_ns()}'
+            if not newname in cls.__node_mapping_definition:
+                break
+        cls.__node_mapping_definition[newname] = newname
+        return newname
+
+    @classmethod
+    def _get_node_mapping(cls, old_name):
+        """
+        Returns the new name for an old node
+        @param old_name
+        """
+        return cls.__node_mapping_definition[old_name]
+
+    @classmethod
+    def _get_unique_node_name(cls, bakery_item_name, proposed_name=None):
+        """
+        Assists the creation of new node names for old ones
+        @param bakery_item_name: name for the bakery item attached
+        @param proposed_name: previous name
+        """
+        if proposed_name is None:
+            return cls._get_new_node_name(bakery_item_name)
+        else:
+            if proposed_name in cls.__node_mapping_definition:
+                return cls.__node_mapping_definition[proposed_name]
+            else:
+                newname = cls._get_new_node_name(bakery_item_name)
+                cls.__node_mapping_definition[proposed_name] = newname
+                return newname
+
+    def links_from_json(self, json_str):
+        for input_name, other_node_data in json_str['input'].items():
+            if not input_name in self.input:
+                raise ValueError(f'Invalid input_name "{input_name}". It is not in this input!')
+            if other_node_data is None:
+                self.input[input_name] = None
+            else:
+                other_node_name, other_node_output_name = other_node_data
+                other_node = Node._get_node(Node._get_node_mapping(other_node_name))
+                self.input[input_name] = (other_node, other_node_output_name)
+        
+        for output_name, other_node_data in json_str['output'].items():
+            if output_name == 'null':
+                output_name = None
+            for other_node_name, other_node_input_names in other_node_data.items():
+                if not output_name in self.output:
+                    raise ValueError(f'Invalid output_name "{output_name}". It is not in this output!')
+                other_node = Node._get_node(Node._get_node_mapping(other_node_name))
+                self.output[output_name][other_node] = other_node_input_names
+
+    def links_to_json(self):
+        this_structure = {'input': dict(), 'output': dict()}
+        for input_name, other_node_data in self.input.items():
+            if other_node_data is None:
+                this_structure['input'][input_name] = None
+            else:
+                other_node, other_node_output_name = other_node_data
+                this_structure['input'][input_name] = other_node.name, other_node_output_name
+        
+        for output_name, other_node_data in self.output.items():
+            for other_node, other_node_input_names in other_node_data.items():
+                if not output_name in this_structure['output']:
+                    this_structure['output'][output_name] = dict()
+                this_structure['output'][output_name][other_node.name] = other_node_input_names
+        return this_structure
 
     def n_links_in(self):
         """

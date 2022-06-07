@@ -249,6 +249,11 @@ class MultiSlicer(Slicer):
         
         to_ret = dict()
         for i in task_seq:
+            # this is needed for MultiSlicer
+            #TODO: check if exec failed!
+            if i['node'].save_exec:
+                i['node'].last_exec = self.results[i['node'].name]
+            
             to_ret[i['node'].name] = self.results[i['node'].name]
             self.results.pop(i['node'].name) # results are not needed here
         return to_ret

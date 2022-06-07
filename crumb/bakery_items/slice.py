@@ -122,16 +122,6 @@ class Slice(BakeryItem):
         if crumb.settings.debug:
             print('Results of slice execution are:', results)
 
-        # populated nodes with output if needed
-        for node in self.nodes.values():
-            node = node['node']
-            if node in self.last_execution_seq: # node was executed
-                if not node.name in results:
-                    raise RuntimeError('Expected result to be in here but is not') #TODO: possibly this can become a warning
-                else:
-                    if node.save_exec:
-                        node.last_exec = results[node.name]
-        
         # obtain output for this slice:
         results_to_return = dict()
         for output_name, (node_name, node_output_name) in self._output_mapping.items():

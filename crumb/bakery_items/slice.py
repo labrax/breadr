@@ -1,5 +1,19 @@
 
-import itertools
+"""Slice
+This module implements the class Slice, child of BakeryItem.
+
+This class is a container that stores other BakeryItem.
+The BakeryItems can be instanced into Nodes, and linked in different ways to run different pipelines.
+
+This big class contains implementations for the main functionality needed:
+- add/remove BakeryItems:
+add and remove them based
+- create instances Node that represent different BakeryItem operations
+- input/output, their mappings, and link between Node:
+relate the different Node and the input/output of this Slice
+- serialiser and deserialiser to json, save and load
+"""
+
 from multiprocessing.sharedctypes import Value
 import os
 import json

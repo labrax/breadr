@@ -17,8 +17,8 @@ class Crumb(BakeryItem):
         @param input: the input of the function: {'param1': int, 'param2': class, ...}
         @param output: the output of the function, int, float, class, ..., obtained from type()
         """
-        super().__init__(name, input, output)
         self._crumb_check_input(func, input)
+        super().__init__(name, input, output)
         
         self.file = file.replace('\\', '/')
         self.func = func
@@ -68,7 +68,7 @@ class Crumb(BakeryItem):
     def from_json(self, json_str):
         json_str = json.loads(json_str)
 
-        filepath = json_str['executable']['file']
+        filepath = json_str['executable_file']
         crumb_name = json_str['name']
 
         self.load_from_file(filepath, crumb_name)
@@ -76,12 +76,7 @@ class Crumb(BakeryItem):
     def to_json(self):
         this_structure = {
             'name': self.name,
-            'input': {i:j.__name__ for i,j in self.input.items()} if self.input else {},
-            'output': self.output.__name__,
-            'executable': {
-                'file': self.file,
-                'func': self.func.__name__
-            }
+            'executable_file': self.file
         }
         return json.dumps(this_structure)
 

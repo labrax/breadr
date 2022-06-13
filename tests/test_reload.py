@@ -1,10 +1,14 @@
-import unittest
-
+"""
+Tests reloading a Slice from a json string.
+"""
 from crumb.bakery_items.slice import Slice
 
-class TestReload(unittest.TestCase):
-    def test_reload_slice(self):
-        __slice_str = r"""{
+
+def test_reload_slice():
+    """
+    Tests loading a Slice from json and executing it.
+    """
+    __slice_str = r"""{
   "slice_name": "test",
   "version": 1,
   "input": {
@@ -177,12 +181,13 @@ class TestReload(unittest.TestCase):
     }
   }
 }"""
-        
-        s = Slice(name='dummy')
-        s.from_json(__slice_str)
-        
-        ret = s.run(input={'in': 1, 'in2': 10, 'in3': 5})
+    slice = Slice(name='dummy')
+    slice.from_json(__slice_str)
+    ret = slice.run(input={'in': 1, 'in2': 10, 'in3': 5})
+    # print(ret)
+    assert ret['out'] == 16
+    assert ret['out2'] == 5
 
-        self.assertEqual(ret['out'], 16)
-        self.assertEqual(ret['out2'], 5)
 
+if __name__ == '__main__':
+    test_reload_slice()

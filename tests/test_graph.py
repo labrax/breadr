@@ -1,96 +1,106 @@
-
-import unittest
-
-import crumb.settings as settings
+"""
+Tests the creation of a Slice from scratch
+"""
+from crumb import settings
 from crumb.bakery_items.slice import Slice
 from crumb.repository import CrumbRepository
 from crumb.slicers.slicers import delete_slicer
 
 cr = CrumbRepository()
 
-class TestGraph(unittest.TestCase):
-    def test_graph_parallel(self):
+
+def test_graph_parallel() -> None:
+    """
+    Tests running a Slice in parallel
+    """
+    try:
         import tests.sample_crumbs
-        
-        self.assertIn('get5', cr.crumbs)
-        self.assertIn('add15', cr.crumbs)
-        self.assertIn('minus', cr.crumbs)
+    except ImportError:
+        import sample_crumbs
+    # did we load what we wanted?
+    # print(cr.crumbs)
+    assert 'get5' in cr.crumbs
+    assert 'add15' in cr.crumbs
+    assert 'minus' in cr.crumbs
+    # n1 = Node(cr.get_crumb('get5'))
+    # n2 = Node(cr.get_crumb('add15'))
+    # n3 = Node(cr.get_crumb('minus'))
+    # n4 = Node(cr.get_crumb('get5'))
+    slice = Slice('test')
+    # add and remove in
+    slice.add_input('in', int)
+    slice.remove_input('in')
+    slice.add_input('in', int)
+    # add and remove out
+    slice.add_output('out', int)
+    slice.remove_output('out')
+    slice.add_output('out', int)
+    # ins/outs
+    slice.add_input('in2', int)
+    slice.add_input('in3', int)
+    slice.add_output('out2', int)
+    # add crumbs
+    slice.add_bakery_item('get5', cr.get_crumb('get5'))
+    slice.add_bakery_item('add15', cr.get_crumb('add15'))
+    slice.add_bakery_item('minus', cr.get_crumb('minus'))
+    # add nodes
+    node_1 = slice.add_node('get5')
+    node_2 = slice.add_node('add15')
+    node_3 = slice.add_node('minus')
+    node_4 = slice.add_node('get5')
+    node_5 = slice.add_node('minus')
+    node_6 = slice.add_node('minus')
+    # print([n1, n2, n3, n4, n5, n6])
+    # add node to be remove
+    _n = slice.add_node('minus')
+    slice.add_input_mapping('in', _n, 'a')
+    slice.remove_input_mapping('in', _n, 'a')
+    # add input mapping
+    slice.add_input_mapping('in', node_2, 'a')
+    slice.add_input_mapping('in2', node_5, 'a')
+    slice.add_input_mapping('in3', node_5, 'b')
+    # add and remove input mapping
+    slice.add_output_mapping('out', _n, None)
+    slice.remove_output_mapping('out', _n, None)
+    # check if number of nodes decrease when removing it
+    length_initial = len(cr.get_crumb('minus').get_nodes_using())
+    slice.remove_node(_n)
+    length_end = len(cr.get_crumb('minus').get_nodes_using())
+    assert length_end < length_initial
+    # adds output mapping
+    slice.add_output_mapping('out', node_3, None)
+    slice.add_output_mapping('out2', node_4, None)
+    # add/remove links
+    slice.add_link(node_1, None, node_6, 'a')
+    slice.remove_link(node_1, None, node_6, 'a')
+    slice.add_link(node_1, None, node_6, 'a')
+    slice.add_link(node_2, None, node_6, 'b')
+    slice.add_link(node_5, None, node_3, 'a')
+    slice.add_link(node_6, None, node_3, 'b')
+    # other debug
+    # from pprint import pprint
+    # pprint(s.nodes[n1]['node'].output)
+    # pprint(s.nodes[n6]['node'].input)
+    # pprint(s.crumbs)
+    # pprint(s.nodes)
+    # print(s._check_graph_circular())
+    # print(s._check_input_complete(only_in_output=True))
+    # ensure parallel will be used
+    delete_slicer()
+    settings.USE_MULTISLICER = True
+    # run
+    ret = slice.run(input={'in': 1, 'in2': 10, 'in3': 5})
+    assert ret['out'] == 16
+    assert ret['out2'] == 5
+    # kill and re-run
+    delete_slicer()
+    ret = slice.run(input={'in': 1, 'in2': 10, 'in3': 5})
+    assert ret['out'] == 16
+    assert ret['out2'] == 5
+    # print(s.to_json())
+    delete_slicer()
+    settings.USE_MULTISLICER = False
 
-        # n1 = Node(cr.get_crumb('get5'))
-        # n2 = Node(cr.get_crumb('add15'))
-        # n3 = Node(cr.get_crumb('minus'))
-        # n4 = Node(cr.get_crumb('get5'))
 
-        s = Slice('test')
-        s.add_input('in', int)
-        s.remove_input('in')
-        s.add_input('in', int)
-
-        s.add_output('out', int)
-        s.remove_output('out')
-        s.add_output('out', int)
-
-        s.add_input('in2', int)
-        s.add_input('in3', int)
-        s.add_output('out2', int)
-
-        s.add_bakery_item('get5', cr.get_crumb('get5'))
-        s.add_bakery_item('add15', cr.get_crumb('add15'))
-        s.add_bakery_item('minus', cr.get_crumb('minus'))
-
-        n1 = s.add_node('get5')
-        n2 = s.add_node('add15')
-        n3 = s.add_node('minus')
-        n4 = s.add_node('get5')
-        n5 = s.add_node('minus')
-        n6 = s.add_node('minus')
-
-        # print([n1, n2, n3, n4, n5, n6])
-
-        _n = s.add_node('minus')
-        s.add_input_mapping('in', _n, 'a')
-        s.remove_input_mapping('in', _n, 'a')
-
-        s.add_input_mapping('in', n2, 'a')
-        s.add_input_mapping('in2', n5, 'a')
-        s.add_input_mapping('in3', n5, 'b')
-
-        s.add_output_mapping('out', _n, None)
-        s.remove_output_mapping('out', _n, None)
-
-        t1 = len(cr.get_crumb('minus').get_nodes_using())
-        s.remove_node(_n)
-        t2 = len(cr.get_crumb('minus').get_nodes_using())
-
-        self.assertLess(t2, t1)
-
-        s.add_output_mapping('out', n3, None)
-        s.add_output_mapping('out2', n4, None)
-
-        s.add_link(n1, None, n6, 'a')
-        s.remove_link(n1, None, n6, 'a')
-        s.add_link(n1, None, n6, 'a')
-        s.add_link(n2, None, n6, 'b')
-
-        s.add_link(n5, None, n3, 'a')
-        s.add_link(n6, None, n3, 'b')
-
-        # from pprint import pprint
-
-        # pprint(s.nodes[n1]['node'].output)
-        # pprint(s.nodes[n6]['node'].input)
-        
-        # pprint(s.crumbs)
-        # pprint(s.nodes)
-
-        # print(s._check_graph_circular())
-        # print(s._check_input_complete(only_in_output=True))
-
-        delete_slicer() # ensure parallel will be used
-        settings.multislicer = True
-        ret = s.run(input={'in': 1, 'in2': 10, 'in3': 5})
-
-        self.assertEqual(ret['out'], 16)
-        self.assertEqual(ret['out2'], 5)
-
-        # print(s.to_json())
+if __name__ == '__main__':
+    test_graph_parallel()

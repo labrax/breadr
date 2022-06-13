@@ -1,10 +1,17 @@
-
+"""
+Module Node to abstract the graph structure.
+"""
+from __future__ import annotations
+from typing import Dict
 import time
 
 
 class Node:
-    __node_mapping_definition = dict()
-    __node__instances = dict()
+    """
+    Node contains functionality to build the execution graph.
+    """
+    __node_mapping_definition: Dict[str, str] = {}
+    __node__instances: Dict[str, Node] = {}
 
     def __init__(self, bakery_item, name=None):
         """
@@ -18,17 +25,19 @@ class Node:
         self.bakery_item.add_node_using(self)
         self.save_exec = True
         self.last_exec = {}
-
+        # input
+        # format is {'input name': ('other Node', 'other node name')} # each input
         if self.bakery_item.input:
-            self.input = {i:None for i in self.bakery_item.input.keys()} # format is {'input name': ('other Node', 'other node name')} # each input
+            self.input = {i: None for i in self.bakery_item.input.keys()}
         else:
             self.input = {}
-
+        # output
+        # format is {'output name': {'other Node': [other node name, ...]}} # multiple output
         if self.bakery_item.output:
             if self.bakery_item.__class__.__name__ == 'Slice':
-                self.output = {i:dict() for i in self.bakery_item.output.keys()} # format is {'output name': {'other Node': [other node name, ...]}} # multiple output
+                self.output = {i: {} for i in self.bakery_item.output.keys()}
             elif self.bakery_item.__class__.__name__ == 'Crumb':
-                self.output = {None:dict()}
+                self.output = {None: {}}
             else:
                 raise NotImplementedError(f'"{self.bakery_item.__class__.__name__}" is not implemented for node')
 
@@ -39,38 +48,38 @@ class Node:
         return self.__repr__()
 
     @classmethod
-    def _set_node(cls, node_name, instance):
+    def _set_node(cls, node_name: str, instance) -> None:
         cls.__node__instances[node_name] = instance
 
     @classmethod
-    def _get_node(cls, node_name):
+    def get_node(cls, node_name: str) -> Node:
         return cls.__node__instances[node_name]
 
     @classmethod
-    def _get_new_node_name(cls, bakery_item_name):
+    def _get_new_node_name(cls, bakery_item_name) -> str:
         """
-        Generates new name for a node
+        Generate new name for a node
         @param bakery_item_name: bakery item used
         """
-        while True: # this should not need to loop
+        while True:  # this should not need to loop
             newname = f'{bakery_item_name}.{time.time_ns()}'
-            if not newname in cls.__node_mapping_definition:
+            if newname not in cls.__node_mapping_definition:
                 break
         cls.__node_mapping_definition[newname] = newname
         return newname
 
     @classmethod
-    def _get_node_mapping(cls, old_name):
+    def get_node_mapping(cls, old_name: str) -> str:
         """
-        Returns the new name for an old node
+        Return the new name for an old node
         @param old_name
         """
         return cls.__node_mapping_definition[old_name]
 
     @classmethod
-    def _get_unique_node_name(cls, bakery_item_name, proposed_name=None):
+    def _get_unique_node_name(cls, bakery_item_name: str, proposed_name: str = None) -> str:
         """
-        Assists the creation of new node names for old ones
+        Assist the creation of new node names for old ones
         @param bakery_item_name: name for the bakery item attached
         @param proposed_name: previous name
         """
@@ -84,121 +93,123 @@ class Node:
                 cls.__node_mapping_definition[proposed_name] = newname
                 return newname
 
-    def links_from_json(self, json_str):
+    def links_from_json(self, json_str) -> None:
+        """
+        Create links from json representation
+        """
         for input_name, other_node_data in json_str['input'].items():
-            if not input_name in self.input:
+            if input_name not in self.input:
                 raise ValueError(f'Invalid input_name "{input_name}". It is not in this input!')
             if other_node_data is None:
                 self.input[input_name] = None
             else:
                 other_node_name, other_node_output_name = other_node_data
-                other_node = Node._get_node(Node._get_node_mapping(other_node_name))
+                other_node = Node.get_node(Node.get_node_mapping(other_node_name))
                 self.input[input_name] = (other_node, other_node_output_name)
-        
         for output_name, other_node_data in json_str['output'].items():
             if output_name == 'null':
                 output_name = None
             for other_node_name, other_node_input_names in other_node_data.items():
-                if not output_name in self.output:
+                if output_name not in self.output:
                     raise ValueError(f'Invalid output_name "{output_name}". It is not in this output!')
-                other_node = Node._get_node(Node._get_node_mapping(other_node_name))
+                other_node = Node.get_node(Node.get_node_mapping(other_node_name))
                 self.output[output_name][other_node] = other_node_input_names
 
-    def links_to_json(self):
-        this_structure = {'input': dict(), 'output': dict()}
+    def links_to_json(self) -> dict:
+        """
+        Format the internal representation of links as a dict to be used by json
+        """
+        this_structure: Dict[str, dict] = {'input': {}, 'output': {}}
         for input_name, other_node_data in self.input.items():
             if other_node_data is None:
                 this_structure['input'][input_name] = None
             else:
                 other_node, other_node_output_name = other_node_data
                 this_structure['input'][input_name] = other_node.name, other_node_output_name
-        
         for output_name, other_node_data in self.output.items():
             for other_node, other_node_input_names in other_node_data.items():
-                if not output_name in this_structure['output']:
+                if output_name not in this_structure['output']:
                     this_structure['output'][output_name] = dict()
                 this_structure['output'][output_name][other_node.name] = other_node_input_names
         return this_structure
 
-    def n_links_in(self):
+    def n_links_in(self) -> int:
         """
-        Returns number of links to the input of this node
+        Return number of links to the input of this node
         """
-        N = 0
+        number_of_links = 0
         for i in self.input.values():
             if i is not None:
-                N += 1
-        return N
+                number_of_links += 1
+        return number_of_links
 
-    def n_links_out(self):
+    def n_links_out(self) -> int:
         """
-        Returns number of links from the output of this node
+        Return number of links from the output of this node
         """
-        N = 0
+        number_of_links = 0
         for i in self.output.values():
             if i is not None and i:
-                N += 1
-        return N
+                number_of_links += 1
+        return number_of_links
 
-    def n_links(self):
+    def n_links(self) -> int:
         """
-        Returns total number of links from n_links_in() + n_links_out()
+        Return total number of links from n_links_in() + n_links_out()
         """
         return self.n_links_in() + self.n_links_out()
 
-    def has_links(self):
+    def has_links(self) -> bool:
         """
-        Returns boolean indicating if this node has links
+        Return boolean indicating if this node has links
         """
         if self.n_links() > 0:
             return True
         return False
 
-    def get_input_type(self, name):
+    def get_input_type(self, name: str) -> type:
         """
-        Returns the type of this node input
+        Return the type of this node input
         @param name: input name
         """
         if self.bakery_item.__class__.__name__ == 'Slice':
-            self.bakery_item.input[name]
-        elif self.bakery_item.__class__.__name__ == 'Crumb':
             return self.bakery_item.input[name]
-        else:
-            # this code should never run as error already in __init__
-            raise NotImplementedError(f'"{self.bakery_item.__class__.__name__}" is not implemented for node')
+        if self.bakery_item.__class__.__name__ == 'Crumb':
+            return self.bakery_item.input[name]
+        # this code should never run as error already in __init__
+        raise NotImplementedError(f'"{self.bakery_item.__class__.__name__}" is not implemented for node')
 
-    def get_output_type(self, name):
+    def get_output_type(self, name: str) -> type:
         """
-        Returns the type of this node output
+        Return the type of this node output
         @param name: output name
         """
         if self.bakery_item.__class__.__name__ == 'Slice':
-            self.bakery_item.output[name]
-        elif self.bakery_item.__class__.__name__ == 'Crumb':
+            return self.bakery_item.output[name]
+        if self.bakery_item.__class__.__name__ == 'Crumb':
             return self.bakery_item.output
-        else:
-            # this code should never run as error already in __init__
-            raise NotImplementedError(f'"{self.bakery_item.__class__.__name__}" is not implemented for node')
+        # this code should never run as error already in __init__
+        raise NotImplementedError(f'"{self.bakery_item.__class__.__name__}" is not implemented for node')
 
-    def _validate_input(self, target):
+    def _validate_input(self, target: str) -> None:
         """
-        Checks if a a name in input
+        Check if a a name in input
         @param target: what we looking for
         """
-        if not target in self.input:
+        if target not in self.input:
             raise RuntimeError(f'variable "{target}" wanted not in input')
 
-    def _validate_output(self, other_node, other_node_variable):
+    def _validate_output(self, other_node: Node, other_node_variable: str) -> None:
         """
-        Checks if a a name in output
+        Check if a a name in output
         @param target: what we looking for
         """
-        if not other_node_variable in other_node.input:
+        if other_node_variable not in other_node.input:
             raise RuntimeError(f'variable "{other_node_variable}" wanted not in input of "{other_node}"')
 
-    def add_input(self, this_variable, other_node, other_node_name):
+    def add_input(self, this_variable: str, other_node: Node, other_node_name: str) -> None:
         """
-        Adds another node to this node input
+        Add another node to this node input
         @param this_variable: variable in my input
         @param other_node: the other node
         @param other_node_name: the name of the variable outputted by the other node
@@ -206,13 +217,13 @@ class Node:
         self._validate_input(this_variable)
         if self.input[this_variable] is not None:
             raise RuntimeError(f'variable "{this_variable}" is already defined')
-        if not other_node_name in other_node.output:
+        if other_node_name not in other_node.output:
             raise RuntimeError(f'output "{this_variable}" not in "{other_node}"')
         self.input[this_variable] = (other_node, other_node_name)
 
-    def remove_input(self, this_variable):
+    def remove_input(self, this_variable: str) -> None:
         """
-        Removes the links from another node to this input
+        Remove the links from another node to this input
         @param this_variable: the name of the input
         """
         self._validate_input(this_variable)
@@ -220,48 +231,44 @@ class Node:
             raise RuntimeError(f'variable {this_variable} is already undefined')
         self.input[this_variable] = None
 
-    def add_output(self, this_output_name, other_node, other_node_variable):
+    def add_output(self, this_output_name: str, other_node: Node, other_node_variable: str) -> None:
         """
-        Adds another node to this node output
+        Add another node to this node output
         @param this_variable: variable in my output
         @param other_node: the other node
         @param other_node_name: the name of the variable inputted by the other node
         """
         self._validate_output(other_node, other_node_variable)
-        if not this_output_name in self.output:
+        if this_output_name not in self.output:
             raise RuntimeError(f'output {this_output_name} wanted not in output')
-        if not other_node in self.output[this_output_name]:
+        if other_node not in self.output[this_output_name]:
             self.output[this_output_name][other_node] = list()
         self.output[this_output_name][other_node].append(other_node_variable)
 
-    def remove_output(self, this_output_name, other_node, other_node_variable):
+    def remove_output(self, this_output_name: str, other_node: Node, other_node_variable: str) -> None:
         """
-        Removes another node to this node output
+        Remove another node to this node output
         @param this_output_name: variable in my output
         @param other_node: the other node
         @param other_node_name: the name of the variable inputted by the other node
         """
-        if not other_node in self.output[this_output_name]:
+        if other_node not in self.output[this_output_name]:
             raise RuntimeError(f'"{other_node}" is not in our list of outputs')
         self.output[this_output_name][other_node].remove(other_node_variable)
 
-    def run(self, input):
+    def run(self, input: dict):
         """
         Return the output for the underlying bakery item element
         @param input: dict() with elements as needed, empty dict if not required
         """
         _ret = self.bakery_item.run(input)
-        
         if self.bakery_item.__class__.__name__ == 'Slice':
             ret = _ret
         elif self.bakery_item.__class__.__name__ == 'Crumb':
-            ret = {None:_ret}
+            ret = {None: _ret}
         else:
             # this code should never run as error already in __init__
             raise NotImplementedError(f'"{self.bakery_item.__class__.__name__}" is not implemented for node')
-
         if self.save_exec:
             self.last_exec = ret
-
         return ret
-        

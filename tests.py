@@ -1,12 +1,6 @@
+"""Execute all the tests"""
 
-# execute all the tests
-
-import unittest
-
-from tests.basic import TestBasics, TestSlice, TestJSON
-from tests.invalid_function_def import TestInputErrors
-from tests.singleton import TestCrumbRepositorySingleton
-from tests.test_graph import TestGraph
+import pytest
 
 if __name__ == '__main__':
-    unittest.main()
+    pytest.main()

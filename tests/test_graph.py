@@ -14,9 +14,11 @@ def test_graph_parallel() -> None:
     Tests running a Slice in parallel
     """
     try:
-        import tests.sample_crumbs
+        import tests.sample_crumbs  # pylint: disable=import-outside-toplevel
+        assert tests.sample_crumbs.get5() == 5
     except ImportError:
-        import sample_crumbs
+        import sample_crumbs  # pylint: disable=import-outside-toplevel
+        assert sample_crumbs.get5() == 5
     # did we load what we wanted?
     # print(cr.crumbs)
     assert 'get5' in cr.crumbs

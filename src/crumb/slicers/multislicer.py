@@ -7,7 +7,7 @@ from typing import Dict, List, Tuple, Any, Union
 import crumb.settings
 from crumb.node import Node
 from .multislicer_functions import do_schedule, do_work, wait_work
-from .generic import Slicer, TaskDependencies, TaskToBeDone
+from .generic import Slicer, TaskDependencies, TaskToBeDone  # pylint: disable=unused-import
 
 
 class MultiSlicer(Slicer):
@@ -51,28 +51,29 @@ class MultiSlicer(Slicer):
         self.kill()
         if not hasattr(self, 'processes'):
             atexit.register(self.kill)  # this is because __del__ is too late!
-        self.manager = Manager()
-        self.lock = Lock()
-        self.n_jobs = self.manager.Value(int, 0)
-        self.processes: List[Process] = []
-        self.number_processes = number_processes
+        # these variables are defined on __new__ due to singleton
+        self.manager = Manager()  # pylint: disable=attribute-defined-outside-init
+        self.lock = Lock()  # pylint: disable=attribute-defined-outside-init
+        self.n_jobs = self.manager.Value(int, 0)  # pylint: disable=attribute-defined-outside-init
+        self.processes: List[Process] = []  # pylint: disable=attribute-defined-outside-init
+        self.number_processes = number_processes  # pylint: disable=attribute-defined-outside-init
         # ready for execution
         # [{'node': node, 'input': {name': value}}]
-        self.tasks_to_be_done: "Queue[TaskToBeDone]" = Queue()
+        self.tasks_to_be_done: "Queue[TaskToBeDone]" = Queue()  # pylint: disable=attribute-defined-outside-init
         # ready to be transmitted to results
         # {'node_name': node, 'output': {'name': value}}
-        self.tasks_done: Queue = Queue()
+        self.tasks_done: Queue = Queue()  # pylint: disable=attribute-defined-outside-init
         # {node_name: {var: value}}
-        self.results: Dict[str, Any] = self.manager.dict()
+        self.results: Dict[str, Any] = self.manager.dict()  # pylint: disable=attribute-defined-outside-init
         # {node_name: {var: value}}
-        self.input_for_nodes: Dict[str, Dict[str, Any]] = self.manager.dict()
+        self.input_for_nodes: Dict[str, Dict[str, Any]] = self.manager.dict()  # pylint: disable=attribute-defined-outside-init
         # {node_name: node}
-        self.node_waiting: Dict[str, Node] = self.manager.dict()
+        self.node_waiting: Dict[str, Node] = self.manager.dict()  # pylint: disable=attribute-defined-outside-init
         # {deps: [node_name]}
-        self.deps_to_nodes: Dict[str, List[Node]] = self.manager.dict()
+        self.deps_to_nodes: Dict[str, List[Node]] = self.manager.dict()  # pylint: disable=attribute-defined-outside-init
         # if node not in here it means dependencies were solved and sent for execution
         # {node_name: [deps]}
-        self.nodes_to_deps: Dict[str, List[str]] = self.manager.dict()
+        self.nodes_to_deps: Dict[str, List[str]] = self.manager.dict()  # pylint: disable=attribute-defined-outside-init
         scheduler_process = Process(target=do_schedule,
                                     name='MultiSlicer-Scheduler',
                                     args=(self.lock,

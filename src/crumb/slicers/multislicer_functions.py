@@ -1,10 +1,13 @@
 """Functions for multislicer processes"""
 from queue import Empty
+from multiprocessing import Queue
+from typing import Dict, List, Any
 import time
 import crumb.settings
+from .generic import TaskToBeDone  # pylint: disable=unused-import
 
 
-def do_work(tasks_to_be_done, tasks_that_are_done):
+def do_work(tasks_to_be_done: "Queue[TaskToBeDone]", tasks_that_are_done: Queue) -> bool:
     """
     Task for workers.
     This function goes through the list of tasks, executes and returns the result.
@@ -25,7 +28,7 @@ def do_work(tasks_to_be_done, tasks_that_are_done):
     return True
 
 
-def do_schedule(lock, tasks_to_be_done, tasks_that_are_done, results, input_for_nodes, deps_to_nodes, nodes_to_deps, node_waiting):
+def do_schedule(lock, tasks_to_be_done: "Queue[TaskToBeDone]", tasks_that_are_done: Queue, results, input_for_nodes, deps_to_nodes, nodes_to_deps, node_waiting) -> bool:
     """
     Task for scheduler jobs.
     This function checks tasks that are done and compile finished dependencies for other nodes.
@@ -94,7 +97,7 @@ def do_schedule(lock, tasks_to_be_done, tasks_that_are_done, results, input_for_
     return True
 
 
-def wait_work(tasks_to_be_done, waiting_for, results):
+def wait_work(tasks_to_be_done: "Queue[TaskToBeDone]", waiting_for: List[str], results: Dict[str, Dict[str, Any]]) -> bool:
     """
     Function for Process MultiSlicer-Wait to loop and wait while there are tasks to be executed
     """

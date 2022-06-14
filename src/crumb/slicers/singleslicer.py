@@ -22,19 +22,20 @@ class SingleSlicer(Slicer):
 
     def reset(self):
         # ready for execution
+        # these variables are defined on __new__ due to singleton
         # [{'node': node, 'input': {name': value}}]
-        self.tasks_to_be_done: List[TaskToBeDone] = []
+        self.tasks_to_be_done: List[TaskToBeDone] = []  # pylint: disable=attribute-defined-outside-init
         # {node_name: {var: value}}
-        self.results: Dict[str, Dict[str, Any]] = {}
+        self.results: Dict[str, Dict[str, Any]] = {}  # pylint: disable=attribute-defined-outside-init
         # {node_name: {var: value}}
-        self.input_for_nodes: Dict[str, Dict[str, Any]] = {}
+        self.input_for_nodes: Dict[str, Dict[str, Any]] = {}  # pylint: disable=attribute-defined-outside-init
         # {node_name: node}
-        self.node_waiting: Dict[str, Node] = {}
+        self.node_waiting: Dict[str, Node] = {}  # pylint: disable=attribute-defined-outside-init
         # {deps: [node_name]}
-        self.deps_to_nodes: Dict[str, List[str]] = {}
+        self.deps_to_nodes: Dict[str, List[str]] = {}  # pylint: disable=attribute-defined-outside-init
         # if node not in here it means dependencies were solved and executed
         # {node_name: [deps]}
-        self.nodes_to_deps: Dict[str, List[str]] = {}
+        self.nodes_to_deps: Dict[str, List[str]] = {}  # pylint: disable=attribute-defined-outside-init
 
     def _exec(self) -> None:
         while len(self.tasks_to_be_done) > 0:

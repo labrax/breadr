@@ -55,7 +55,7 @@ class Crumb(BakeryItem):
         if spec is None:
             raise RuntimeError('Cannot load file "{filepath}" with function.')
         mod = module_from_spec(spec)
-        _ = spec.loader.exec_module(mod)
+        _ = spec.loader.exec_module(mod)  # type: ignore  # already handled above
         # get crumb
         restored_crumb = crumb_repository.get_crumb(this_name)
         self.name = this_name

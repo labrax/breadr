@@ -1,6 +1,8 @@
 """
 Module repository
 This module stores the definition of CrumbRepository
+
+Note, pylint comments are due to variables being defined inside reset() rather than __init__() due to singleton
 """
 from typing import Callable, Optional, Dict
 import inspect
@@ -37,7 +39,7 @@ class CrumbRepository:
             if not self._warned_names:
                 warnings.warn('Functions without explicit names will be given names from their filepath and name." \
                               + " Give a name to the crumb using the "name" parameter.', UserWarning)
-                self._warned_names = True
+                self._warned_names = True  # pylint: disable=attribute-defined-outside-init
         # check existance in repo
         if (self._redirect is not None and name in self._redirect) or (self._redirect is None and name in self.crumbs):
             raise ValueError(f'name "{name}" already used in the repository')
@@ -46,16 +48,18 @@ class CrumbRepository:
             raise ValueError(f'"{output}" is not a type. maybe you wanted to do type("{output}")?')
         # check input
         if input:
+            if not isinstance(input, dict):
+                raise ValueError(f'Input must be a dict or nothing, not "{type(input)}".')
             _invalid_input = []
             for i, j in input.items():
                 if j.__class__.__name__ != 'type':
                     _invalid_input.append(i)
             if len(_invalid_input) > 0:
                 _invalid_input_str = '", "'.join(_invalid_input)
-                raise ValueError(f'at least one input parameter is not a type. check: "{_invalid_input_str}"')
+                raise ValueError(f'At least one input parameter is not a type. check: "{_invalid_input_str}"')
         # starts the new crumb
         # it is expected that there is always at least 2 frames up: this one, the decorator call, and the module.
-        new_crumb = Crumb(name=name, input=input, output=output, func=func, file=inspect.getfile(inspect.currentframe().f_back.f_back))
+        new_crumb = Crumb(name=name, input=input, output=output, func=func, file=inspect.getfile(inspect.currentframe().f_back.f_back))  # type: ignore
         if self._redirect:
             self._redirect[name] = new_crumb
         else:
@@ -77,10 +81,10 @@ class CrumbRepository:
         """
         Clear the stored data
         """
-        self.crumbs = {}
-        self._warned_names = False
-        self._mute = False
-        self._redirect = None
+        self.crumbs = {}  # pylint: disable=attribute-defined-outside-init
+        self._warned_names = False  # pylint: disable=attribute-defined-outside-init
+        self._mute = False  # pylint: disable=attribute-defined-outside-init
+        self._redirect = None  # pylint: disable=attribute-defined-outside-init
 
     def get_redirected(self):
         """
@@ -94,16 +98,16 @@ class CrumbRepository:
         To pass the object as reference it needs to be inside a dictionary with the key target, e.g. use the parameter to with {'target': dict()}
         @param new_redirection: the object with the data
         """
-        self._redirect = new_redirection['target']
+        self._redirect = new_redirection['target']  # pylint: disable=attribute-defined-outside-init
 
     def mute(self):
         """
         Stops collecting crumbs
         """
-        self._mute = True
+        self._mute = True  # pylint: disable=attribute-defined-outside-init
 
     def unmute(self):
         """
         Restarts collecting crumbs
         """
-        self._mute = False
+        self._mute = False  # pylint: disable=attribute-defined-outside-init

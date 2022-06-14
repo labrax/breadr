@@ -43,14 +43,15 @@ class Crumb(BakeryItem):
         return crumb
 
     def load_from_file(self, filepath: str, this_name: str) -> None:
-        from crumb.repository import CrumbRepository  # in here to avoid recursive imports
+        # in here to avoid recursive imports
+        from crumb.repository import CrumbRepository
         crumb_repository = CrumbRepository()
         # redirect crumbs creation to ensure we have the right function
         crumbs_repo: dict = {}
         redirect_status = crumb_repository.get_redirected()
         crumb_repository.redirect({'target': crumbs_repo})
         # load file to recover crumbs
-        path, pkg = os.path.split(filepath)
+        _, pkg = os.path.split(filepath)
         spec = spec_from_file_location(os.path.splitext(pkg)[0], filepath)
         if spec is None:
             raise RuntimeError('Cannot load file "{filepath}" with function.')

@@ -164,7 +164,6 @@ class MultiSlicer(Slicer):
         to_ret = {}
         for i in task_seq:
             # this is needed for MultiSlicer
-            # TODO: check if exec failed!
             if i['node'].save_exec:
                 i['node'].last_exec = self.results[i['node'].name]
             to_ret[i['node'].name] = self.results[i['node'].name]

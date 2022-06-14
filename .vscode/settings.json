@@ -13,5 +13,7 @@
     "python.linting.flake8Enabled": true,
     "python.linting.mypyEnabled": true,
     "python.envFile": "${workspaceFolder}/.env",
-    "terminal.integrated.env.windows": { "PYTHONPATH": "${workspaceFolder}/src" }
+    "terminal.integrated.env.windows": { "PYTHONPATH": "${workspaceFolder}/src" },
+    "coverage-gutters.showGutterCoverage": false,
+    "coverage-gutters.showLineCoverage": true
 }

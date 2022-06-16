@@ -69,6 +69,7 @@ class SingleSlicer(Slicer):
                         # send for execution
                         self.tasks_to_be_done.append({'node': node, 'input': self.input_for_nodes[node_name]})
                         self.input_for_nodes.pop(node_name)  # we can clean this as it was already sent
+                self.deps_to_nodes.pop(just_exec_node_name)  # we are done with this one
 
     def add_work(self, task_seq: List[TaskDependencies], inputs_required: Dict[Tuple[str, str], Any] = None) -> Union[Dict[str, Any], Any]:
         """

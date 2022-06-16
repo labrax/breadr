@@ -32,3 +32,9 @@ def add15(a: int, b_input: int = 15) -> int:  # pylint: disable=invalid-name
 def minus(a: int, b: int) -> int:  # pylint: disable=invalid-name
     """Return a - b"""
     return a - b
+
+
+@crumb(input={'input_a': int, 'input_b': int}, output=int, name='sum2')
+def sum_two_numbers(input_a: int, input_b: int) -> int:
+    """Return the sum of input_a and input_b"""
+    return input_a + input_b

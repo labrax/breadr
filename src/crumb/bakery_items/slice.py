@@ -430,7 +430,7 @@ class Slice(BakeryItem):
         """
         # check for existance
         self._check_input_exists(name, check_mapping=False)
-        self._check_node_exists(node_name, node_input)
+        self._check_node_exists(node_name, node_input=node_input)
         # check for types
         node = self.nodes[node_name]['node']
         if self.input[name] != node.get_input_type(node_input):
@@ -466,7 +466,7 @@ class Slice(BakeryItem):
         """
         # check for existance
         self._check_output_exists(name, check_mapping=True)
-        self._check_node_exists(node_name, node_output)
+        self._check_node_exists(node_name, node_output=node_output)
         # check for types
         node = self.nodes[node_name]['node']
         if self.output[name] != node.get_output_type(node_output):

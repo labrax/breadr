@@ -61,7 +61,7 @@ def test_crumb_invalid() -> None:
                 return a_input
 
 
-def test_slice() -> None:
+def test_slice_json_from_to() -> None:
     """Test if we can start a slice and if the json can be used"""
     # crumbs needed
     import tests.sample_crumbs  # pylint: disable=import-outside-toplevel
@@ -102,5 +102,5 @@ def test_crumb_tofrom_json() -> None:
 
 if __name__ == '__main__':
     test_crumb()
-    test_slice()
+    test_slice_json_from_to()
     test_crumb_tofrom_json()

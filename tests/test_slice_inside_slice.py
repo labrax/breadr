@@ -61,7 +61,58 @@ def test_slice_slice() -> None:
     ret = slice_4_sum.run(input={'in1': 1, 'in2': 1, 'in3': 1, 'in4': 1})
     assert ret['out_3'] == 3
     assert ret['out_4'] == 4
+    delete_slicer()
+
+
+def test_slice_inside_slice_similar_names():
+    """Test the handling of external and internal variable names"""
+    try:
+        import tests.sample_crumbs  # pylint: disable=import-outside-toplevel
+        assert tests.sample_crumbs.get5() == 5
+    except ImportError:
+        import sample_crumbs  # pylint: disable=import-outside-toplevel
+        assert sample_crumbs.get5() == 5
+    # inner slice
+    slice_inner = Slice('inner')
+    slice_inner.add_bakery_item('add', cr.get_crumb('sum2'))
+    slice_inner.add_input('in1', int)
+    slice_inner.add_input('in2', int)
+    slice_inner.add_output('out', int)
+    n_inner = slice_inner.add_node('add')
+    slice_inner.add_input_mapping('in1', n_inner, 'input_a')
+    slice_inner.add_input_mapping('in2', n_inner, 'input_b')
+    slice_inner.add_output_mapping('out', n_inner, None)
+    # mid slice
+    slice_mid = Slice('mid')
+    slice_mid.add_bakery_item('get5', cr.get_crumb('get5'))
+    slice_mid.add_bakery_item('slice_inner', slice_inner)
+    slice_mid.add_input('input', int)
+    slice_mid.add_input('input2', int)
+    slice_mid.add_output('out_inner', int)
+    n_mid = slice_mid.add_node('get5')
+    n_slice_inner = slice_mid.add_node('slice_inner')
+    slice_mid.add_output_mapping('out_inner', n_slice_inner, 'out')
+    slice_mid.add_link(n_mid, None, n_slice_inner, 'in1')
+    slice_mid.add_link(n_mid, None, n_slice_inner, 'in2')
+    # outer slice
+    slice_outer = Slice('out')
+    slice_outer.add_bakery_item('slice_mid', slice_mid)
+    slice_outer.add_input('in1', int)
+    slice_outer.add_input('in2', int)
+    slice_outer.add_output('out', int)
+    n_slice_mid = slice_outer.add_node('slice_mid')
+    slice_outer.add_input_mapping('in1', n_slice_mid, 'input')
+    slice_outer.add_input_mapping('in2', n_slice_mid, 'input2')
+    slice_outer.add_output_mapping('out', n_slice_mid, 'out_inner')
+
+    ret_inner = slice_inner.run(input={'in1': 1, 'in2': 1})
+    assert ret_inner['out'] == 2
+    ret_mid = slice_mid.run(input={'input1': 1, 'input2': 1})
+    assert ret_mid['out_inner'] == 10
+    ret_outer = slice_outer.run(input={'in1': 1, 'in2': 1})
+    assert ret_outer['out'] == 10
 
 
 if __name__ == '__main__':
     test_slice_slice()
+    test_slice_inside_slice_similar_names()

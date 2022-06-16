@@ -73,8 +73,14 @@ def do_schedule(lock, tasks_to_be_done: "Queue[TaskToBeDone]", tasks_that_are_do
                     # collect input for node
                     node = node_waiting[node_name]
                     # get all inputs - they are done
-                    collected_inputs = {}
-                    for input_name, (previous_node, other_node_input) in node.input.items():
+                    if node_name in input_for_nodes:
+                        collected_inputs = input_for_nodes[node_name]
+                    else:
+                        collected_inputs = {}
+                    for input_name, from_other_nodes in node.input.items():
+                        if not from_other_nodes:
+                            continue
+                        (previous_node, other_node_input) = from_other_nodes
                         if crumb.settings.DEBUG_VERBOSE:
                             print('scheduler>', input_name, previous_node, other_node_input)
                         collected_inputs[input_name] = results[previous_node.name][other_node_input]

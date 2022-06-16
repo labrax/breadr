@@ -20,7 +20,8 @@ def do_work(tasks_to_be_done: "Queue[TaskToBeDone]", tasks_that_are_done: Queue)
             break
         if crumb.settings.DEBUG_VERBOSE:
             print('worker> task is', task)
-            print('worker> function is', task['node'].bakery_item.func)
+            if hasattr(task['node'].bakery_item, 'func'):
+                print('worker> function is', task['node'].bakery_item.func)
         task['output'] = task['node'].run(task['input'])
         task['node'] = task['node'].name  # we dont need the node anymore
         # run and return results

@@ -17,6 +17,7 @@ import os
 import json
 from typing import Dict, List, Tuple, Optional, TypedDict, Any
 from pprint import pprint
+import warnings
 
 import crumb.settings
 from crumb import __slice_serializer_version__
@@ -202,6 +203,17 @@ class Slice(BakeryItem):
                     pre_computed_results[(node_name, node_input[0])] = input[name]
         if len(_missing_input) > 0:
             raise RuntimeError(f'Missing inputs to Slice {self}, add variables: "{_missing_input}"')
+        _extra_input = []
+        _input_not_used = []
+        for name in input.keys():
+            if name not in self.input.keys():
+                _extra_input.append(name)
+            if name in self.input.keys() and len(self._input_mapping[name]) == 0:
+                _input_not_used.append(name)
+        if len(_extra_input) > 0:
+            warnings.warn(f'Slice {self} has no inputs: "{_extra_input}"')
+        if len(_input_not_used) > 0:
+            warnings.warn(f'Slice {self} is not using inputs: "{_input_not_used}"')
         # print(self.last_execution_seq)
         task_executor = get_slicer()
         results = task_executor.add_work(task_seq=self.last_execution_seq, inputs_required=pre_computed_results)

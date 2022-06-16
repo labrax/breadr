@@ -105,7 +105,7 @@ class MultiSlicer(Slicer):
             if node.bakery_item.__class__.__name__ == 'Crumb':
                 node.bakery_item.func = None
             elif node.bakery_item.__class__.__name__ == 'Slice':
-                for sub_node in node.bakery_item.values():
+                for sub_node in node.bakery_item.nodes.values():
                     _prepare_node_for_exec(sub_node['node'])
             else:
                 raise NotImplementedError('bakery item inside node not known')

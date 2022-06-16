@@ -77,7 +77,7 @@ class Slice(BakeryItem):
         self.last_execution_seq: Optional[List[NodeDeps]] = None
 
     def __repr__(self):
-        return f'{self.__class__.__name__} at {hex(id(self))} with {len(self.bakery_items)} crumbs'
+        return f'{self.__class__.__name__} at {hex(id(self))} with {len(self.bakery_items)} crumbs and {len(self.nodes)} nodes'
 
     def __str__(self):
         return self.__repr__()

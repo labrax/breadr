@@ -390,7 +390,7 @@ class Slice(BakeryItem):
                 if data is not None:  # if none comes from slice!
                     this['deps'].append(data[0].name)
             nodes_seq.append(this)
-        log(LoggerQueue.get_logger(), 'execu graph is> {nodes_seq}', logging.DEBUG)
+        log(LoggerQueue.get_logger(), 'execu graph is>', logging.DEBUG, payload=nodes_seq)
         return nodes_seq
 
     # slice input and output functions

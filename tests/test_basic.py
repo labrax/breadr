@@ -1,5 +1,6 @@
 """Basic tests"""
 import pytest
+from crumb.settings import Settings
 from crumb import crumb, CrumbRepository
 from crumb.bakery_items.slice import Slice
 from crumb.bakery_items.crumb import Crumb
@@ -10,7 +11,7 @@ cr = CrumbRepository()
 def test_crumb() -> None:
     """Check if Crumb can be created"""
     cr.reset()
-
+    Settings.LOGGING_WARNING_TWICE = True
     with pytest.warns(UserWarning):
         @crumb(output=int, name='func_test')
         def func(a_input: int = 3) -> int:
@@ -21,6 +22,7 @@ def test_crumb() -> None:
 
 def test_crumb_invalid() -> None:
     """Check if errors are popping in Crumb creation"""
+    Settings.LOGGING_WARNING_TWICE = True
     # get all warnings about functions defined in here
     with pytest.warns(UserWarning):
         # check for input that is not well formated

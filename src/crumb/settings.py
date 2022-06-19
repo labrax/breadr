@@ -10,6 +10,8 @@ class Settings:
     LOGGING_LEVEL = logging.WARNING
     LOGGING_FILENAME = None
     LOGGING_FORMAT = '%(asctime)s %(levelname)s %(message)s'
+    # ensure that warnings come twice for tests
+    LOGGING_WARNING_TWICE = False
     # if started as single, then exec as multi, then changed to single it might break depending where the functions come from!
     # if the functions come from top level of a file it will work
     USE_MULTISLICER = False

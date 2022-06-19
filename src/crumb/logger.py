@@ -1,8 +1,9 @@
 """Define structure to obtain status and logs"""
 import atexit
+import logging
+import warnings
 import multiprocessing
 from multiprocessing import Queue, Process
-import logging
 from typing import Optional
 
 from crumb.settings import Settings
@@ -11,6 +12,8 @@ from crumb.settings import Settings
 def log(logger_queue: Queue, message: str, log_level: int, payload: dict = None):
     """Adds a message to the logging queue"""
     logger_queue.put({'process': multiprocessing.current_process().name, 'message': message, 'logging_level': log_level, 'payload': str(payload)})
+    if Settings.LOGGING_WARNING_TWICE:
+        warnings.warn(message)
 
 
 def do_log_task(logger_queue: Queue):

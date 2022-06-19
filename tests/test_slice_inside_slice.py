@@ -1,4 +1,7 @@
 """Test the creation of a Slice with a Slice inside"""
+import os
+import json
+import tempfile
 from crumb import settings
 from crumb.bakery_items.slice import Slice
 from crumb.repository import CrumbRepository
@@ -111,6 +114,39 @@ def test_slice_inside_slice_similar_names():
     assert ret_mid['out_inner'] == 10
     ret_outer = slice_outer.run(input={'in1': 1, 'in2': 1})
     assert ret_outer['out'] == 10
+
+    # reload from copy
+    slice_outer_copy = Slice('out_copy')
+    slice_outer_copy.from_json(slice_outer.to_json())
+    assert slice_outer_copy.run(input={'in1': 1, 'in2': 1})['out'] == 10
+
+    # settings for files
+    mid_temp_file = tempfile.NamedTemporaryFile(delete=False)
+    mid_temp_file.close()
+    outer_temp_file = tempfile.NamedTemporaryFile(delete=False)
+    outer_temp_file.close()
+
+    # mid json changes when saving to file
+    assert slice_mid.to_json(False) == slice_mid.to_json(True)
+    slice_mid.save_to_file(mid_temp_file.name, overwrite=True)
+    assert slice_mid.to_json(False) != slice_mid.to_json(True)
+    interest = json.loads(slice_outer.to_json())['bakery_items']['slice_mid']['bakery_item']
+    assert 'filepath' in interest
+    assert 'input' not in interest
+
+    # now try to reload this Slice with a part in another file:
+    slice_outer_file = Slice('out_copy_file')
+    slice_outer_file.from_json(slice_outer.to_json())
+    assert slice_outer_file.run(input={'in1': 1, 'in2': 1})['out'] == 10
+
+    # now try to save this last one
+    slice_outer_file.save_to_file(path=outer_temp_file.name, overwrite=True)
+    slice_outer_file.load_from_file(outer_temp_file.name)
+    assert slice_outer_file.run(input={'in1': 1, 'in2': 1})['out'] == 10
+
+    # delete the files
+    os.unlink(mid_temp_file.name)
+    os.unlink(outer_temp_file.name)
 
 
 if __name__ == '__main__':

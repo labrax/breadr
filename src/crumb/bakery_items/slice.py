@@ -75,6 +75,7 @@ class Slice(BakeryItem):
         # format is {node: {'node var': 'node var type'}}
         self._required_input: Optional[Dict[Node, Dict[str, type]]] = None
         self.last_execution_seq: Optional[List[NodeDeps]] = None
+        self.filepath: Optional[str] = None
 
     def __repr__(self):
         return f'{self.__class__.__name__} at {hex(id(self))} with {len(self.bakery_items)} crumbs and {len(self.nodes)} nodes'
@@ -88,90 +89,100 @@ class Slice(BakeryItem):
             raise ImportError('Imported file has a higher version')
         self.version = __slice_serializer_version__
         self.name = json_obj['slice_name']
-        # check types
+        # if it is a loaded/saved Slice lets reload from the original file
+        if 'filepath' in json_obj:
+            self.load_from_file(json_obj['filepath'], this_name=json_obj['slice_name'])
+        else:  # if it is not we'll need to load all the inside bits
+            # check types
+            def _type_eval(type_str):
+                """
+                eval is naturally unsafe. Checks were made to improve security
+                """
+                if not all(i.isalnum() or (i == '.') for i in type_str):
+                    raise RuntimeError(f'Invalid type name "{type_str}"!')
+                type_evaluated = eval(type_str)
+                if type_evaluated.__class__.__name__ == 'type':
+                    return type_evaluated
+                else:
+                    raise RuntimeError(f'Invalid type name "{type_str}"!')
+            # input/output
+            self.input = {i: _type_eval(j) for i, j in json_obj['input']['objects'].items()} if json_obj['input']['objects'] else {}
+            self.output = {i: _type_eval(j) for i, j in json_obj['output']['objects'].items()} if json_obj['output']['objects'] else {}
+            # start bakery items
 
-        def _type_eval(type_str):
-            """
-            eval is naturally unsafe. Checks were made to improve security
-            """
-            if not all(i.isalnum() or (i == '.') for i in type_str):
-                raise RuntimeError(f'Invalid type name "{type_str}"!')
-            type_evaluated = eval(type_str)
-            if type_evaluated.__class__.__name__ == 'type':
-                return type_evaluated
-            else:
-                raise RuntimeError(f'Invalid type name "{type_str}"!')
-        # input/output
-        self.input = {i: _type_eval(j) for i, j in json_obj['input']['objects'].items()} if json_obj['input']['objects'] else {}
-        self.output = {i: _type_eval(j) for i, j in json_obj['output']['objects'].items()} if json_obj['output']['objects'] else {}
-        # start bakery items
-
-        def _create_bi_from_instance(json_str: str, type: type):
-            if type == 'Crumb':
-                return Crumb.create_from_json(json_str)
-            if type == 'Slice':
-                current_slice = Slice(name='_dummy')
-                current_slice.from_json(json_str)
-                return current_slice
-            raise NotImplementedError('Can only handle Crumb and Slice objects')
-        self.bakery_items = {i: {
-            'bakery_item': _create_bi_from_instance(j['bakery_item'], j['type']),
-            'type': j['type']
-        } for i, j in json_obj['bakery_items'].items()} if json_obj['bakery_items'] else {}
-        self.nodes = {}
-        # first start the nodes
-        for node_name, node_data in json_obj['nodes'].items():
-            instance_of: str = node_data['instance_of']
-            save_exec, last_exec = node_data['save_exec'], node_data['last_exec']
-            new_node: Node = Node(bakery_item=self.bakery_items[instance_of]['bakery_item'], name=node_name)
-            new_node.last_exec = last_exec
-            new_node.save_exec = save_exec
-            self.nodes[new_node.name] = {'node': new_node,
-                                         'instance_of': instance_of}
-        # then start the links
-        for node_name, node_data in json_obj['nodes'].items():
-            link_str = node_data['link_str']
-            new_node = Node.get_node(Node.get_node_mapping(node_name))
-            new_node.links_from_json(link_str)
-        # translate the name of the nodes
-        self._input_mapping = {}
-        for input_name, data in json_obj['input']['mapping'].items():
-            self._input_mapping[input_name] = {}
-            for node_name, node_inputs in data.items():
-                self._input_mapping[input_name][Node.get_node_mapping(node_name)] = node_inputs
-        self._output_mapping = {}
-        for output_name, (node_name, node_output_name) in json_obj['output']['mapping'].items():
-            self._output_mapping[output_name] = (Node.get_node_mapping(node_name), node_output_name)
-
-    def to_json(self) -> str:
-        this_structure = {
-            'slice_name': self.name,
-            'version': __slice_serializer_version__,
-            'input': {
-                'objects': {i: j.__name__ for i, j in self.input.items()} if self.input else {},
-                'mapping': self._input_mapping
-            },
-            'output': {
-                'objects': {i: j.__name__ for i, j in self.output.items()} if self.output else {},
-                'mapping': self._output_mapping
-            },
-            'bakery_items': {i: {
-                'bakery_item': j['bakery_item'].to_json(),
+            def _create_bi_from_instance(json_str: str, type: type):
+                if type == 'Crumb':
+                    return Crumb.create_from_json(json_str)
+                if type == 'Slice':
+                    current_slice = Slice(name='_dummy')
+                    current_slice.from_json(json_str)
+                    return current_slice
+                raise NotImplementedError('Can only handle Crumb and Slice objects')
+            self.bakery_items = {i: {
+                'bakery_item': _create_bi_from_instance(j['bakery_item'], j['type']),
                 'type': j['type']
-            } for i, j in self.bakery_items.items()} if self.bakery_items else {},
-            'nodes': {i: {
-                'instance_of': j['instance_of'],
-                'link_str': j['node'].links_to_json(),
-                'save_exec': j['node'].save_exec,
-                'last_exec': j['node'].last_exec
-            } for i, j in self.nodes.items()}
-        }
+            } for i, j in json_obj['bakery_items'].items()} if json_obj['bakery_items'] else {}
+            self.nodes = {}
+            # first start the nodes
+            for node_name, node_data in json_obj['nodes'].items():
+                instance_of: str = node_data['instance_of']
+                save_exec, last_exec = node_data['save_exec'], node_data['last_exec']
+                new_node: Node = Node(bakery_item=self.bakery_items[instance_of]['bakery_item'], name=node_name)
+                new_node.last_exec = last_exec
+                new_node.save_exec = save_exec
+                self.nodes[new_node.name] = {'node': new_node, 'instance_of': instance_of}
+            # then start the links
+            for node_name, node_data in json_obj['nodes'].items():
+                link_str = node_data['link_str']
+                new_node = Node.get_node(Node.get_node_mapping(node_name))
+                new_node.links_from_json(link_str)
+            # translate the name of the nodes
+            self._input_mapping = {}
+            for input_name, data in json_obj['input']['mapping'].items():
+                self._input_mapping[input_name] = {}
+                for node_name, node_inputs in data.items():
+                    self._input_mapping[input_name][Node.get_node_mapping(node_name)] = node_inputs
+            self._output_mapping = {}
+            for output_name, (node_name, node_output_name) in json_obj['output']['mapping'].items():
+                self._output_mapping[output_name] = (Node.get_node_mapping(node_name), node_output_name)
+
+    def to_json(self, tofile: bool = False) -> str:
+        if self.filepath and not tofile:
+            this_structure = {
+                'slice_name': self.name,
+                'version': __slice_serializer_version__,
+                'filepath': self.filepath
+            }
+        else:
+            this_structure = {
+                'slice_name': self.name,
+                'version': __slice_serializer_version__,
+                'input': {
+                    'objects': {i: j.__name__ for i, j in self.input.items()} if self.input else {},
+                    'mapping': self._input_mapping
+                },
+                'output': {
+                    'objects': {i: j.__name__ for i, j in self.output.items()} if self.output else {},
+                    'mapping': self._output_mapping
+                },
+                'bakery_items': {i: {
+                    'bakery_item': j['bakery_item'].to_json(),
+                    'type': j['type']
+                } for i, j in self.bakery_items.items()} if self.bakery_items else {},
+                'nodes': {i: {
+                    'instance_of': j['instance_of'],
+                    'link_str': j['node'].links_to_json(),
+                    'save_exec': j['node'].save_exec,
+                    'last_exec': j['node'].last_exec
+                } for i, j in self.nodes.items()}
+            }
         return json.dumps(this_structure)
 
     def load_from_file(self, filepath: str, this_name: str = None) -> None:
         """Load the current object from a file using the from_json method"""
         with open(filepath, mode='r', encoding="utf-8") as open_file:
             self.from_json(open_file.read())
+        self.filepath = filepath
 
     def save_to_file(self, path: str, overwrite: bool = False) -> None:
         """Save the current object to a file using the to_json method"""
@@ -179,7 +190,8 @@ class Slice(BakeryItem):
             if os.path.exists(path):
                 raise FileExistsError(f'File {path} already exists. Use parameter "overwrite" to replace.')
         with open(path, mode='w', encoding="utf-8") as open_file:
-            open_file.write(self.to_json())
+            open_file.write(self.to_json(tofile=True))
+        self.filepath = path
 
     def reload(self):
         for i in self.bakery_items.values():

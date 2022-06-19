@@ -1,9 +1,9 @@
 """Decorator to initiate Crumb objects into CrumbRepository"""
 import functools
 import inspect
-import warnings
 
 from crumb import settings
+from crumb.logger import log, LoggerQueue, logging
 from crumb.repository import CrumbRepository
 
 
@@ -26,7 +26,7 @@ def crumb(_func=None, *, output, input=None, name=None):
         if context_filename == '<stdin>':
             raise RuntimeError('When using multislicer, @crumb decorator must be used in a file top level ("<stdin>" will not work)')
     elif context_function != '<module>' or context_filename == '<stdin>':
-        warnings.warn('Since function is not in a module root it might not be possible to reload it after saving')
+        log(LoggerQueue.get_logger(), 'Since function is not in a module root it might not be possible to reload it after saving', logging.WARNING)
 
     def decorator_add(func):
         CrumbRepository().add_crumb(name=name,

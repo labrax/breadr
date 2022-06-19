@@ -16,7 +16,6 @@ relate the different Node and the input/output of this Slice
 import os
 import json
 from typing import Dict, List, Tuple, Optional, TypedDict, Any
-import warnings
 
 from crumb import __slice_serializer_version__
 
@@ -221,13 +220,13 @@ class Slice(BakeryItem):
             if name in self.input.keys() and len(self._input_mapping[name]) == 0:
                 _input_not_used.append(name)
         if len(_extra_input) > 0:
-            warnings.warn(f'Slice {self} has no inputs: "{_extra_input}"')
+            log(LoggerQueue.get_logger(), f'{self} has no inputs: "{_extra_input}"', logging.WARNING)
         if len(_input_not_used) > 0:
-            warnings.warn(f'Slice {self} is not using inputs: "{_input_not_used}"')
+            log(LoggerQueue.get_logger(), f'{self} is not using inputs: "{_input_not_used}"', logging.WARNING)
         # print(self.last_execution_seq)
         task_executor = get_slicer()
         results = task_executor.add_work(task_seq=self.last_execution_seq, inputs_required=pre_computed_results)
-        log(LoggerQueue.get_logger(), 'Results of slice execution are: {results}', logging.DEBUG)
+        log(LoggerQueue.get_logger(), f'Results of slice execution are: {results}', logging.DEBUG)
         # obtain output for this slice:
         results_to_return = {}
         for output_name, (node_name, node_output_name) in self._output_mapping.items():

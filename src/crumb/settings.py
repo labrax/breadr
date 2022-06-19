@@ -6,11 +6,10 @@ import logging
 
 class Settings:
     """Settings store"""
-    LOGGING_LEVEL = logging.DEBUG
+    # logging settings
+    LOGGING_LEVEL = logging.WARNING
     LOGGING_FILENAME = None
     LOGGING_FORMAT = '%(asctime)s %(levelname)s %(message)s'
-
-    DEBUG_VERBOSE = False
     # if started as single, then exec as multi, then changed to single it might break depending where the functions come from!
     # if the functions come from top level of a file it will work
     USE_MULTISLICER = False

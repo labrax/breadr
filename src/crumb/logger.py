@@ -22,7 +22,7 @@ def do_log_task(logger_queue: Queue):
         lmsg = logger_queue.get(True)
         if lmsg['message'] is None:
             break
-        logger.log(lmsg['logging_level'], "[%s] %s", lmsg['process'], lmsg['message'])
+        logger.log(lmsg['logging_level'], "[%s]: %s", lmsg['process'], lmsg['message'])
         if lmsg['payload'] != 'None':
             logger.log(lmsg['logging_level'], lmsg['payload'])
     return True

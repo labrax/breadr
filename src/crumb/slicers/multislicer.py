@@ -1,7 +1,7 @@
 """Executor with multiprocessing support"""
+import atexit
 from multiprocessing import Manager, Lock, Process, Queue
 from queue import Empty
-import atexit
 from typing import Dict, List, Tuple, Any, Union
 
 from crumb.settings import Settings

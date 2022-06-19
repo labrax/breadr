@@ -16,9 +16,9 @@ def log(logger_queue: Queue, message: str, log_level: int, payload: dict = None)
         warnings.warn(message)
 
 
-def do_log_task(logger_queue: Queue):
+def do_log_task(logger_queue: Queue, settings_used: dict):
     """Task for logger"""
-    logging.basicConfig(level=Settings.LOGGING_LEVEL, filename=Settings.LOGGING_FILENAME, format=Settings.LOGGING_FORMAT)
+    logging.basicConfig(level=settings_used['level'], filename=settings_used['logfile'], format=settings_used['format'])
     logger = logging.getLogger()
 
     while True:
@@ -52,7 +52,9 @@ class LoggerQueue:
             raise RuntimeError('Logger task is already running.')
         cls.process = Process(target=do_log_task,
                               name='Logger-Wait',
-                              args=(cls.get_logger(), ))
+                              args=(cls.get_logger(), {'logfile': Settings.LOGGING_FILENAME,
+                                                       'format': Settings.LOGGING_FORMAT,
+                                                       'level': Settings.LOGGING_LEVEL}))
         cls.process.start()
         atexit.register(cls.kill)
 

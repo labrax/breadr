@@ -45,8 +45,7 @@ class Crumb(BakeryItem):
         return crumb
 
     def load_from_file(self, filepath: str, this_name: str) -> None:
-        # in here to avoid recursive imports
-        from crumb.repository import CrumbRepository
+        from crumb.repository import CrumbRepository  # in here to avoid recursive imports
         crumb_repository = CrumbRepository()
         # redirect crumbs creation to ensure we have the right function
         crumbs_repo: dict = {}

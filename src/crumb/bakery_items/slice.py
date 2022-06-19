@@ -16,16 +16,15 @@ relate the different Node and the input/output of this Slice
 import os
 import json
 from typing import Dict, List, Tuple, Optional, TypedDict, Any
-from pprint import pprint
 import warnings
 
-import crumb.settings
 from crumb import __slice_serializer_version__
 
 from crumb.node import Node
 from crumb.slicers.slicers import get_slicer
 from crumb.bakery_items.crumb import Crumb
 from crumb.bakery_items.generic import BakeryItem
+from crumb.logger import LoggerQueue, log, logging
 
 
 class NodeRepresentation(TypedDict):
@@ -198,8 +197,7 @@ class Slice(BakeryItem):
                 if name not in input:
                     _missing_input.append(name)
                 else:
-                    if crumb.settings.DEBUG_VERBOSE:
-                        print('slicer will get --->', (node_name, node_input[0]))
+                    log(LoggerQueue.get_logger(), f'slicer will get ---> {(node_name, node_input[0])}', logging.DEBUG)
                     pre_computed_results[(node_name, node_input[0])] = input[name]
         if len(_missing_input) > 0:
             raise RuntimeError(f'Missing inputs to Slice {self}, add variables: "{_missing_input}"')
@@ -217,8 +215,7 @@ class Slice(BakeryItem):
         # print(self.last_execution_seq)
         task_executor = get_slicer()
         results = task_executor.add_work(task_seq=self.last_execution_seq, inputs_required=pre_computed_results)
-        if crumb.settings.DEBUG_VERBOSE:
-            print('Results of slice execution are:', results)
+        log(LoggerQueue.get_logger(), 'Results of slice execution are: {results}', logging.DEBUG)
         # obtain output for this slice:
         results_to_return = {}
         for output_name, (node_name, node_output_name) in self._output_mapping.items():
@@ -382,9 +379,7 @@ class Slice(BakeryItem):
                 if data is not None:  # if none comes from slice!
                     this['deps'].append(data[0].name)
             nodes_seq.append(this)
-        if crumb.settings.DEBUG_VERBOSE:
-            print('execu graph is>')
-            pprint(nodes_seq)
+        log(LoggerQueue.get_logger(), 'execu graph is> {nodes_seq}', logging.DEBUG)
         return nodes_seq
 
     # slice input and output functions

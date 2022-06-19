@@ -4,8 +4,9 @@ from queue import Empty
 import atexit
 from typing import Dict, List, Tuple, Any, Union
 
-import crumb.settings
+from crumb.settings import Settings
 from crumb.node import Node
+from crumb.logger import LoggerQueue, log, logging
 from .multislicer_functions import do_schedule, do_work, wait_work
 from .generic import Slicer, TaskDependencies, TaskToBeDone  # pylint: disable=unused-import
 
@@ -24,8 +25,7 @@ class MultiSlicer(Slicer):
 
     def kill(self) -> None:
         """Kill all the multiprocessing processes"""
-        if crumb.settings.DEBUG_VERBOSE:
-            print('multislicer> starting kill ritual')
+        log(LoggerQueue.get_logger(), 'multislicer> starting kill ritual', logging.INFO)
         if hasattr(self, 'processes'):
             # if task executor was started before lets kill everything then restart
             while not self.tasks_to_be_done.empty():
@@ -36,15 +36,13 @@ class MultiSlicer(Slicer):
             self.tasks_done.put({'node': None, 'input': {'kill': True}})  # one for the scheduler
             for _ in range(len(self.processes)):
                 self.tasks_to_be_done.put({'node': None, 'input': {'kill': True}})  # other for workers/wait
-            if crumb.settings.DEBUG_VERBOSE:
-                print(f'{self.__class__.__name__} waiting for all processes to join')
+            log(LoggerQueue.get_logger(), f'{self.__class__.__name__} waiting for all processes to join', logging.INFO)
             for i in self.processes:
-                if crumb.settings.DEBUG_VERBOSE:
-                    print('slicer> joining', i)
+                log(LoggerQueue.get_logger(), f'slicer> joining {i}', logging.INFO)
                 i.join()
             del self.processes
 
-    def reset(self, number_processes: int = crumb.settings.MULTISLICER_THREADS) -> None:
+    def reset(self, number_processes: int = Settings.MULTISLICER_THREADS) -> None:
         """
         @param number_processes: restarts the MultiSlicer with a number of work processes
         """
@@ -77,7 +75,7 @@ class MultiSlicer(Slicer):
         scheduler_process = Process(target=do_schedule,
                                     name='MultiSlicer-Scheduler',
                                     args=(self.lock,
-                                          self.tasks_to_be_done, self.tasks_done,
+                                          self.tasks_to_be_done, self.tasks_done, LoggerQueue.get_logger(),
                                           self.results, self.input_for_nodes,
                                           self.deps_to_nodes, self.nodes_to_deps, self.node_waiting))
         self.processes.append(scheduler_process)
@@ -85,7 +83,7 @@ class MultiSlicer(Slicer):
         for i in range(self.number_processes):
             worker_process = Process(target=do_work,
                                      name=f'MultiSlicer-Worker-{i}',
-                                     args=(self.tasks_to_be_done, self.tasks_done))
+                                     args=(self.tasks_to_be_done, self.tasks_done, LoggerQueue.get_logger()))
             self.processes.append(worker_process)
             worker_process.start()
 
@@ -144,12 +142,11 @@ class MultiSlicer(Slicer):
                         temp_list.append(node.name)
                         self.deps_to_nodes[dependency] = temp_list
         finally:
-            if crumb.settings.DEBUG_VERBOSE:
-                print('add task> finished giving tasks')
+            log(LoggerQueue.get_logger(), 'add task> finished giving tasks', logging.INFO)
             self.lock.release()
         waitwork_process = Process(target=wait_work,
                                    name='MultiSlicer-Wait',
-                                   args=(self.tasks_to_be_done, [i['node'].name for i in task_seq], self.results))
+                                   args=(self.tasks_to_be_done, LoggerQueue.get_logger(), [i['node'].name for i in task_seq], self.results))
         self.processes.append(waitwork_process)
         waitwork_process.start()
         waitwork_process.join()
@@ -157,9 +154,8 @@ class MultiSlicer(Slicer):
         self.lock.acquire()
         self.n_jobs.value -= 1
         self.lock.release()
-        if self.n_jobs.value == 0 and crumb.settings.MULTISLICER_START_THEN_KILL_THREADS:
-            if crumb.settings.DEBUG_VERBOSE:
-                print('add task > kill trigger')
+        if self.n_jobs.value == 0 and Settings.MULTISLICER_START_THEN_KILL_THREADS:
+            log(LoggerQueue.get_logger(), 'add task > kill trigger', logging.INFO)
             self.kill()
         # prepare data for return
         to_ret = {}

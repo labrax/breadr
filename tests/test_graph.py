@@ -1,7 +1,7 @@
 """
 Tests the creation of a Slice from scratch
 """
-from crumb import settings
+from crumb.settings import Settings
 from crumb.bakery_items.slice import Slice
 from crumb.repository import CrumbRepository
 from crumb.slicers.slicers import delete_slicer
@@ -89,7 +89,7 @@ def test_graph_parallel() -> None:
     # print(s._check_input_complete(only_in_output=True))
     # ensure parallel will be used
     delete_slicer()
-    settings.USE_MULTISLICER = True
+    Settings.USE_MULTISLICER = True
     # run
     ret = slice.run(input={'in': 1, 'in2': 10, 'in3': 5})
     assert ret['out'] == 16
@@ -101,7 +101,7 @@ def test_graph_parallel() -> None:
     assert ret['out2'] == 5
     # print(s.to_json())
     delete_slicer()
-    settings.USE_MULTISLICER = False
+    Settings.USE_MULTISLICER = False
 
 
 if __name__ == '__main__':

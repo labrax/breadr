@@ -20,7 +20,7 @@ def crumb(_func=None, *, output, input=None, name=None):
     context = inspect.getframeinfo(inspect.currentframe().f_back, context=1)
     context_filename = context.filename
     context_function = context.function
-    if settings.USE_MULTISLICER:
+    if settings.Settings.USE_MULTISLICER:
         if context_function != '<module>':
             raise RuntimeError(f'When using multislicer, @crumb decorator must be used in a file top level (not inside "{context_function}")')
         if context_filename == '<stdin>':

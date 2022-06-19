@@ -7,6 +7,7 @@ from importlib.util import spec_from_file_location, module_from_spec
 import os
 
 from crumb.bakery_items.generic import BakeryItem
+from crumb.logger import LoggerQueue, log, logging
 
 
 class Crumb(BakeryItem):
@@ -19,6 +20,7 @@ class Crumb(BakeryItem):
     @param output: the output of the function, int, float, class, ..., obtained from type()
     """
     def __init__(self, name: str, file: str, func: Callable, input: Optional[Dict[str, type]] = None, output: Optional[type] = None):
+        log(LoggerQueue.get_logger(), f'Starting crumb {name} from {file}', logging.DEBUG)
         self._crumb_check_input(func, input)
         super().__init__(name, input, output)
         self.file = file.replace('\\', '/')

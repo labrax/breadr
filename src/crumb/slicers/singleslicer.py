@@ -1,8 +1,8 @@
 """Single-threaded task executor"""
 from typing import Dict, Any, List, Union, Tuple
 
-import crumb.settings
 from crumb.node import Node
+from crumb.logger import LoggerQueue, log, logging
 from .generic import Slicer, TaskDependencies, TaskToBeDone
 
 
@@ -62,8 +62,8 @@ class SingleSlicer(Slicer):
                             if from_other_nodes:
                                 (previous_node, other_node_input) = from_other_nodes
                                 self.input_for_nodes[node_name][input_name] = self.results[previous_node.name][other_node_input]
-                            if crumb.settings.DEBUG_VERBOSE:
-                                print('adding to queue>', input_name, previous_node, other_node_input)
+                            log(LoggerQueue.get_logger(), 'adding to queue>', logging.DEBUG,
+                                payload={'input_name': input_name, 'previous_node': previous_node, 'other_node_input': other_node_input})
                         # remove from waiting list
                         self.node_waiting.pop(node_name)
                         # send for execution

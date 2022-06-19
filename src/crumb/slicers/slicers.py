@@ -3,7 +3,7 @@ Module Slicers
 Obtain and delete the current Slicer executor
 """
 
-import crumb.settings
+from crumb.settings import Settings
 from crumb.slicers.generic import Slicer
 from crumb.slicers.multislicer import MultiSlicer
 from crumb.slicers.singleslicer import SingleSlicer
@@ -15,7 +15,7 @@ def get_slicer():
     Depending on the settings, this could either be multi or single process.
     """
     if Slicer.TASK_EXECUTOR_INSTANCE is None:
-        if crumb.settings.USE_MULTISLICER:
+        if Settings.USE_MULTISLICER:
             # inside there is another singleton
             Slicer.TASK_EXECUTOR_INSTANCE = MultiSlicer()
         else:

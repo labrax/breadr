@@ -29,14 +29,14 @@ class BakeryItem:
         """
         raise NotImplementedError()
 
-    def from_json(self, json_str) -> None:
+    def from_json(self, json_str: str) -> None:
         """
         Load this BakeryItem with definitions from a json string
         @param json_str
         """
         raise NotImplementedError()
 
-    def load_from_file(self, filepath, this_name) -> None:
+    def load_from_file(self, filepath: str, this_name: str) -> None:
         """
         Load this BakeryItem with definitions from a python source file
         @param filepath: the file

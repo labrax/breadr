@@ -23,6 +23,12 @@ class BakeryItem:
         """
         raise NotImplementedError()
 
+    def to_dict(self) -> dict:
+        """
+        Return this BakeryItem as a dict
+        """
+        raise NotImplementedError()
+
     def to_json(self) -> str:
         """
         Return this BakeryItem as a json string

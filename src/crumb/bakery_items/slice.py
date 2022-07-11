@@ -84,8 +84,6 @@ class Slice(BakeryItem):
 
     def from_json(self, json_str: str) -> None:
         json_obj = json.loads(json_str)
-        if json_obj['version'] > __slice_serializer_version__:
-            raise ImportError('Imported file has a higher version')
         self.version = __slice_serializer_version__
         self.name = json_obj['slice_name']
         # if it is a loaded/saved Slice lets reload from the original file
@@ -146,16 +144,25 @@ class Slice(BakeryItem):
                 self._output_mapping[output_name] = (Node.get_node_mapping(node_name), node_output_name)
 
     def to_json(self, tofile: bool = False) -> str:
+        """Transform dictionary structure into json"""
+        if tofile:
+            data_to_file = {
+                'version': __slice_serializer_version__,
+                'type': 'slice',
+                'slice': json.dumps(self.to_dict(tofile=tofile))
+            }
+            return json.dumps(data_to_file)
+        return json.dumps(self.to_dict(tofile=tofile))
+
+    def to_dict(self, tofile: bool = False) -> dict:
         if self.filepath and not tofile:
             this_structure = {
                 'slice_name': self.name,
-                'version': __slice_serializer_version__,
                 'filepath': self.filepath
             }
         else:
             this_structure = {
                 'slice_name': self.name,
-                'version': __slice_serializer_version__,
                 'input': {
                     'objects': {i: j.__name__ for i, j in self.input.items()} if self.input else {},
                     'mapping': self._input_mapping
@@ -175,12 +182,17 @@ class Slice(BakeryItem):
                     'last_exec': j['node'].last_exec
                 } for i, j in self.nodes.items()}
             }
-        return json.dumps(this_structure)
+        return this_structure
 
     def load_from_file(self, filepath: str, this_name: str = None) -> None:
         """Load the current object from a file using the from_json method"""
         with open(filepath, mode='r', encoding="utf-8") as open_file:
-            self.from_json(open_file.read())
+            json_obj = json.loads(open_file.read())
+            if json_obj['type'] != 'slice':
+                raise ImportError('Invalid type being loaded')
+            if json_obj['version'] > __slice_serializer_version__:
+                raise ImportError('Imported file has a higher version')
+            self.from_json(json_obj['slice'])
         self.filepath = filepath
 
     def save_to_file(self, path: str, overwrite: bool = False) -> None:

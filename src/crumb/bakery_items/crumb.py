@@ -75,11 +75,14 @@ class Crumb(BakeryItem):
         self.load_from_file(filepath, crumb_name)
 
     def to_json(self) -> str:
+        return json.dumps(self.to_dict())
+
+    def to_dict(self) -> dict:
         this_structure = {
             'name': self.name,
             'executable_file': self.file
         }
-        return json.dumps(this_structure)
+        return this_structure
 
     def reload(self) -> None:
         self.load_from_file(self.file, self.name)

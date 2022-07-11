@@ -1,0 +1,47 @@
+<html>
+    <head>
+        <title>Breadr</title>
+        <link rel="stylesheet" href="/dist/treestyle.css">
+    </head>
+    <body>
+        <div id="float-top" class="float">
+            <div class="navbar" style="font-size: 16;">
+                &#127838; breadr
+            </div>
+        </div>
+        
+        <div id="float-bottom" class="float">
+            <div class="navbar" style="font-size: 10; font-style: italic;">
+                &#127838; breadr developed by labrax &copy; 2022
+            </div>
+        </div>
+        
+        <div id="rcorners">
+            <div class="g-list-el">
+                <div class="list-el list-el-header">
+                    <div class="el-content">
+                        File
+                        <span class="right">
+                            <span class="left">Last modified</span>
+                            File size
+                        </span>
+                    </div>
+                </div>
+                {% for f in filefolders.values() %}
+                <div class="list-el list-el-content">
+                    <div class="el-content">
+                        {% raw f['type'] %} {% raw f['name'] %}
+                        <span class="right">
+                            <span class="left">{{f['modified']}}</span>
+                            {{f['size']}}
+                        </span>
+                    </div>
+                </div>
+                {% end %}
+            </div>
+        </div>
+    </body>
+</html>
+
+
+<!--Load a file, or access the <a href="slice/test.json">slice/test.json</a> page.-->

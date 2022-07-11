@@ -1,0 +1,14 @@
+<html>
+    <header>
+
+    </header>
+    <body>
+        <div style="text-align:center">
+            <form action="/login?next={{nextpage}}" method="post" id="login_form">Password: 
+                <input type="password" name="password">
+                <input type="submit" value="Sign in">
+            </form>
+            <span class="errormessage" style="color:red">{{errormessage}}</span>
+        </div>
+    </body>
+</html>

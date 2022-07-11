@@ -1,5 +1,5 @@
 """Breadr main executer"""
-from multiprocessing.sharedctypes import Value
+
 import sys
 import argparse
 import json
@@ -7,17 +7,24 @@ import pprint
 
 from .settings import Settings
 from .bakery_items.slice import Slice
+from .web.app import web_app
 
 
 def main():
     """Main function"""
     parser = argparse.ArgumentParser(prog='breadr', usage='%(prog)s [options]')
-    parser.add_argument('file', type=str, help='Slice file')
+    parser.add_argument('file', type=str, help='Slice file', nargs='?')
     parser.add_argument('-show', help='displays information about a slice file', action='store_true')
     parser.add_argument('-run', help='executes a slice file', action='store_true')
     parser.add_argument('-input', type=str, help='set input parameters, use comma separated values with equals')
     parser.add_argument('-setting', type=str, help='set some settings, use comma separated values with equals')
+    parser.add_argument('-web', help='executes the web browser', action='store_true')
     arguments = parser.parse_args(args=None if sys.argv[1:] else ['--help'])
+
+    # web browser!
+    if arguments.web:
+        web_app()
+        return
 
     # set settings before running
     if arguments.setting:

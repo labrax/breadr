@@ -127,10 +127,10 @@ def test_slice_inside_slice_similar_names():
     outer_temp_file.close()
 
     # mid json changes when saving to file
-    assert slice_mid.to_json(False) == slice_mid.to_json(True)
+    assert json.dumps(slice_mid.to_dict(False)) == json.dumps(slice_mid.to_dict(True))
     slice_mid.save_to_file(mid_temp_file.name, overwrite=True)
-    assert slice_mid.to_json(False) != slice_mid.to_json(True)
-    interest = json.loads(slice_outer.to_json())['bakery_items']['slice_mid']['bakery_item']
+    assert json.dumps(slice_mid.to_dict(False)) != json.dumps(slice_mid.to_dict(True))
+    interest = json.loads(slice_outer.to_json(False))['bakery_items']['slice_mid']['bakery_item']
     assert 'filepath' in interest
     assert 'input' not in interest
 

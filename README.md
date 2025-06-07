@@ -39,7 +39,7 @@ Tested using Python 3.10 (Python 3.8 might work)
 
 0.2
 
-- WebUI: view file, list of crumbs, place crumbs as nodes, run graph get overall output
+1. WebUI: view file, list of crumbs, place crumbs as nodes, run graph get overall output
 
 ###### Tests
 

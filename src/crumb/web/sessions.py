@@ -1,10 +1,12 @@
 """Store the different files open"""
 
+from collections import deque
 import os
 from typing import Dict, Tuple, Any
 
 from crumb.web.node_definitions import get_input_definition, get_output_definition, get_node_definition
 from crumb.bakery_items.slice import NodeRepresentation, Slice
+from crumb.settings import Settings
 
 
 class FileState:
@@ -38,6 +40,20 @@ class FileState:
 
     def refresh_list(self):
         """Reloads the list of functions available"""
+        base_folder = os.path.dirname(self.filepath)
+
+        files = []
+        folders = deque([base_folder])
+        while len(folders) > 0:
+            current_folder = folders.popleft()
+            for i in os.listdir(current_folder):
+                if Settings.WEB_SKIP_HIDDEN and (i[0] == '.' or i[0] == '_'):
+                    continue
+                if os.path.isfile(i) and i.split('.')[-1] in Settings.WEB_EXTENSIONS:
+                    files.append(os.path.join(current_folder, i))
+                elif not os.path.isfile(i) and Settings.WEB_EXPLORE_SUBFOLDERS:
+                    folders.append(os.path.join(current_folder, i))
+
         raise NotImplementedError
 
     def get_function_list(self):

@@ -19,6 +19,11 @@ class Settings:
     MULTISLICER_THREADS = 4
     # if atexit does not work properly it will be required to manually ask the threads to exit!
     MULTISLICER_START_THEN_KILL_THREADS = False
+    # web goes into subfolders?
+    WEB_EXPLORE_SUBFOLDERS = True
+    # web skip _ and . starting folders
+    WEB_SKIP_HIDDEN = True
+    WEB_EXTENSIONS = ['json', 'py']
 
     @classmethod
     def is_int(cls, value):
